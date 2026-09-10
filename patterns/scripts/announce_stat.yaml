@@ -1,0 +1,14 @@
+# Example: announce one sensor via Alexa Media Player (or swap notify target).
+# Do not commit real entity ids for a specific house into upstream docs.
+
+script:
+  voice_announce_battery:
+    alias: "Voice announce battery"
+    mode: single
+    sequence:
+      - service: notify.alexa_media
+        data:
+          target:
+            - media_player.YOUR_ECHO
+          message: >-
+            Battery is {{ states('sensor.battery_percent') }} percent.

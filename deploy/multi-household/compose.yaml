@@ -1,0 +1,116 @@
+name: home-energy-multi
+
+x-app-environment: &app-environment
+  ENERGY_VOICE_MODE: multi_household
+  ASK_SKILL_ID: ${ASK_SKILL_ID:?Set ASK_SKILL_ID in .env}
+  TENANT_DB_PATH: /data/households.sqlite3
+  TENANT_ENCRYPTION_KEY: ${TENANT_ENCRYPTION_KEY:?Set TENANT_ENCRYPTION_KEY in .env}
+  OAUTH_ISSUER: ${OAUTH_ISSUER:?Set OAUTH_ISSUER in .env}
+  OAUTH_AUTHORIZATION_URL: ${OAUTH_AUTHORIZATION_URL:?Set OAUTH_AUTHORIZATION_URL in .env}
+  OAUTH_TOKEN_URL: ${OAUTH_TOKEN_URL:?Set OAUTH_TOKEN_URL in .env}
+  OAUTH_INTROSPECTION_URL: ${OAUTH_INTROSPECTION_URL:?Set OAUTH_INTROSPECTION_URL in .env}
+  OAUTH_ALEXA_CLIENT_ID: ${OAUTH_ALEXA_CLIENT_ID:?Set OAUTH_ALEXA_CLIENT_ID in .env}
+  OAUTH_ALEXA_CLIENT_SECRET: ${OAUTH_ALEXA_CLIENT_SECRET:?Set OAUTH_ALEXA_CLIENT_SECRET in .env}
+  OAUTH_PORTAL_CLIENT_ID: ${OAUTH_PORTAL_CLIENT_ID:?Set OAUTH_PORTAL_CLIENT_ID in .env}
+  OAUTH_PORTAL_CLIENT_SECRET: ${OAUTH_PORTAL_CLIENT_SECRET:?Set OAUTH_PORTAL_CLIENT_SECRET in .env}
+  OAUTH_PORTAL_REDIRECT_URI: ${OAUTH_PORTAL_REDIRECT_URI:?Set OAUTH_PORTAL_REDIRECT_URI in .env}
+  OAUTH_TIMEOUT_SECONDS: ${OAUTH_TIMEOUT_SECONDS:-2}
+
+x-app: &app
+  image: home-energy-multi:local
+  build: ../..
+  restart: unless-stopped
+  environment: *app-environment
+  volumes:
+    - type: bind
+      source: ./private/data
+      target: /data
+      bind:
+        create_host_path: false
+  read_only: true
+  tmpfs:
+    - /tmp:size=16m,mode=1777
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  postgres:
+    image: postgres:17.11-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - identity-database:/var/lib/postgresql/data
+    networks: [identity]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.3
+    command: ["start", "--import-realm"]
+    restart: unless-stopped
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      KC_HOSTNAME: ${KC_HOSTNAME:?Set KC_HOSTNAME in .env}
+      KC_HOSTNAME_STRICT: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:?Set the bootstrap administrator in .env}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:?Set the bootstrap password in .env}
+    ports:
+      - "127.0.0.1:8085:8080"
+    volumes:
+      - type: bind
+        source: ./private/home-energy-realm.json
+        target: /opt/keycloak/data/import/home-energy-realm.json
+        read_only: true
+        bind:
+          create_host_path: false
+    networks: [default, identity]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+
+  initialize:
+    <<: *app
+    profiles: [setup]
+    command: ["energy-voice-admin", "init"]
+    restart: "no"
+
+  alexa:
+    <<: *app
+    ports:
+      - "127.0.0.1:8091:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2).read()"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  portal:
+    <<: *app
+    command: ["gunicorn", "--config", "python:amazon_echo_home_voice.gunicorn_config", "--bind", "0.0.0.0:8080", "--workers", "2", "--threads", "4", "--timeout", "10", "--worker-tmp-dir", "/tmp", "amazon_echo_home_voice.portal:application"]
+    ports:
+      - "127.0.0.1:8092:8080"
+
+networks:
+  identity:
+    internal: true
+
+volumes:
+  identity-database:

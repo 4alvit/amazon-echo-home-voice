@@ -57,7 +57,7 @@ After the real skill exists, update `ASK_SKILL_ID` in the Secret and restart the
 
 ## NAS-only alternative
 
-For the reviewed image, copy `deploy/compose.nas.yaml` to `/volume1/docker/igw-alexa/compose.yaml` and place the protected `.env` alongside it with mode `600`. The manifest pins the local image tag, prohibits pulls, binds port 8091 to NAS loopback, and caps memory, CPU, and process count. From that directory, run `docker compose up --no-build -d`. It creates only the dedicated `igw-alexa` container. Keep `ASK_SKILL_ID` empty until a real skill exists.
+For the reviewed image, copy `deploy/compose.nas.yaml` to `/volume1/docker/igw-alexa/compose.yaml` and place the protected `.env` alongside it with mode `600`. The manifest pins the local image tag, prohibits pulls, binds port 8091 to NAS loopback, and caps memory and process count. It requests a lower CPU scheduling weight because Synology kernels may lack the CPU quota controller. From that directory, run `docker compose up --no-build -d`. It creates only the dedicated `igw-alexa` container. Keep `ASK_SKILL_ID` empty until a real skill exists.
 
 The repository-root `compose.yaml` is the build-from-source alternative and uses the same loopback binding. Do not run both manifests on the same host port.
 

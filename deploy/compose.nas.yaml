@@ -14,7 +14,8 @@ services:
     security_opt:
       - no-new-privileges:true
     mem_limit: 384m
-    cpus: 0.5
+    # Synology kernels may not provide the CPU quota controller.
+    cpu_shares: 256
     pids_limit: 64
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2).read()"]

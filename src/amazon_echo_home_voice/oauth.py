@@ -26,6 +26,7 @@ MAX_RESPONSE_BYTES = 16384
 MAX_ACCESS_TOKEN_LENGTH = 8192
 ALEXA_SCOPE = "energy:read"
 PORTAL_SCOPE = "openid"
+USER_AGENT = "HomeEnergyAccountLinking/1.0"
 # A resolver cannot be interrupted portably. Bound abandoned work as well as the
 # caller's latency; exhausted slots fail closed instead of creating more threads.
 _REQUEST_SLOTS = BoundedSemaphore(8)
@@ -204,6 +205,9 @@ class OAuthClient:
                 "Content-Type": "application/x-www-form-urlencoded",
                 "Accept": "application/json",
                 "Cache-Control": "no-store",
+                # Identify this OAuth client explicitly; identity-provider
+                # gateways can reject the generic HTTP library user agent.
+                "User-Agent": USER_AGENT,
             },
         )
         deadline = time.monotonic() + self.config.timeout_seconds

@@ -1,0 +1,30 @@
+name: Validate Automation Workflows
+
+on:
+  pull_request:
+    paths: ['.github/workflows/**']
+  push:
+    branches: ['main']
+    paths: ['.github/workflows/**']
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: Validate automation workflows
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Install actionlint
+        run: go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+      - name: Validate the automation callers and this workflow
+        run: |
+          "$(go env GOPATH)/bin/actionlint" \
+            .github/workflows/auto-approve.yml \
+            .github/workflows/auto-merge.yml \
+            .github/workflows/workflow-validation.yml

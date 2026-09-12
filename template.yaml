@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Read-only Home Energy Alexa custom skill backed by inverter-gateway
+Parameters:
+  AskSkillId:
+    Type: String
+    AllowedPattern: 'amzn1\.ask\.skill\.[A-Za-z0-9-]+'
+  GatewayUrl:
+    Type: String
+    AllowedPattern: 'https://[^/]+/v1/energy'
+  GatewayReadTokenSecretArn:
+    Type: String
+    Description: Existing Secrets Manager secret ARN with a read_token JSON property
+  CloudflareSecretArn:
+    Type: String
+    Default: ''
+    Description: Optional existing secret ARN with client_id and client_secret JSON properties
+Conditions:
+  HasCloudflare: !Not [!Equals [!Ref CloudflareSecretArn, '']]
+Resources:
+  HomeEnergyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: amazon_echo_home_voice.lambda_handler.lambda_handler
+      Runtime: python3.12
+      MemorySize: 128
+      Timeout: 8
+      Environment:
+        Variables:
+          ASK_SKILL_ID: !Ref AskSkillId
+          IGW_URL: !Ref GatewayUrl
+          IGW_READ_TOKEN: !Sub '{{resolve:secretsmanager:${GatewayReadTokenSecretArn}:SecretString:read_token}}'
+          CF_ACCESS_CLIENT_ID: !If
+            - HasCloudflare
+            - !Sub '{{resolve:secretsmanager:${CloudflareSecretArn}:SecretString:client_id}}'
+            - ''
+          CF_ACCESS_CLIENT_SECRET: !If
+            - HasCloudflare
+            - !Sub '{{resolve:secretsmanager:${CloudflareSecretArn}:SecretString:client_secret}}'
+            - ''
+          IGW_TIMEOUT_SECONDS: '3'
+          IGW_MAX_AGE_SECONDS: '30'
+      Events:
+        Alexa:
+          Type: AlexaSkill
+          Properties:
+            SkillId: !Ref AskSkillId
+Outputs:
+  LambdaArn:
+    Description: Configure this ARN as the Alexa custom skill endpoint
+    Value: !GetAtt HomeEnergyFunction.Arn

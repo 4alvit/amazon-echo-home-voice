@@ -33,4 +33,5 @@ jobs:
           "$RUNNER_TEMP/actionlint" \
             .github/workflows/auto-approve.yml \
             .github/workflows/auto-merge.yml \
+            .github/workflows/test.yml \
             .github/workflows/workflow-validation.yml

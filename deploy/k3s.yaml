@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: igw-alexa
+  namespace: synology-apps
+  labels:
+    app: igw-alexa
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: igw-alexa
+  template:
+    metadata:
+      labels:
+        app: igw-alexa
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: syn
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: alexa
+          # Import the reviewed image into the syn node's containerd before applying.
+          image: docker.io/library/igw-alexa:voice-review
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: igw-alexa-env
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 384Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 3
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: temporary
+              mountPath: /tmp
+      volumes:
+        - name: temporary
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: igw-alexa
+  namespace: synology-apps
+spec:
+  type: ClusterIP
+  selector:
+    app: igw-alexa
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

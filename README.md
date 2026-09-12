@@ -6,13 +6,13 @@ A read-only **Alexa custom skill** for battery charge, current solar power, sola
 Cerbo GX / Venus OS → IGW /v1/energy → this adapter → Alexa → Echo
 ```
 
-IGW owns device selection, units, aggregation, freshness, and wording. The adapter makes one authenticated GET and copies `reports.<name>.text` into an Alexa `PlainText` response. It has no MQTT credentials, calculations, or write commands. This repository replaces earlier Home Assistant YAML examples.
+IGW owns device selection, units, aggregation, freshness, and wording. For each report, the adapter makes one authenticated IGW GET and copies `reports.<name>.text` into an Alexa `PlainText` response. It has no MQTT credentials, calculations, or write commands. This repository replaces earlier Home Assistant YAML examples.
 
-Start with [creating the skill and installing its backend](#self-hosted-webhook-no-aws-account-needed), then [enable it on your Echo](#enable-the-skill-on-your-echo) and use the [voice commands](#everyday-voice-commands). There is no published Home Energy store listing to install from this repository: each operator creates a private development skill connected to their own gateway.
+For one home, start with [creating the skill and installing its backend](#self-hosted-webhook-no-aws-account-needed), then [enable it on your Echo](#enable-the-skill-on-your-echo). For a shared skill serving separate homes, use [account linking and household setup](#multiple-households-and-account-linking). Both modes use the same [voice commands](#everyday-voice-commands). This repository does not have a published Home Energy store listing; development, certification, and store distribution remain separate steps.
 
 ## Included and still required
 
-The repository includes an English (US) interaction model with invocation name **home energy**, a Python Lambda handler, a signature-verified self-hosted HTTPS webhook, a dependency-free smoke CLI, mocked tests, Docker Compose, and an optional AWS SAM template.
+The repository includes an English (US) interaction model with invocation name **home energy**, a Python Lambda handler, a signature-verified self-hosted HTTPS webhook, a dependency-free smoke CLI, automated security and isolation tests, Docker Compose, and an optional personal-mode AWS SAM template. Multi-household mode adds OAuth account linking, a household connection portal, encrypted persistent storage, and a self-hosted Keycloak deployment example.
 
 See the [anonymized verification summary](docs/validation-2026-09-12.md) for completed checks and the remaining physical Echo test. Deployment examples contain placeholders, not an operator's account identifiers, network topology, credentials, or live energy readings.
 
@@ -20,9 +20,29 @@ For a private installation on the home k3s cluster, see [deployment instructions
 
 You can install the backend while developer registration is unfinished by leaving `ASK_SKILL_ID` empty. Health then reports `skill_configured: false`, and every Alexa request is rejected until a real skill ID is supplied.
 
-**Installing the backend does not create or enable an Alexa skill.** The Developer Console must contain a custom skill with this model and the installed endpoint; Development testing must be enabled. A physical Echo test is a separate step. No cloud accounts or credentials are included. This is an installable personal backend, not a publicly certified Alexa product or multi-household service.
+**Installing the backend does not create or enable an Alexa skill.** The Developer Console must contain a custom skill with this model and the installed endpoint; Development testing must be enabled. A physical Echo test is a separate step. No cloud accounts or credentials are included. The code supports personal and multi-household deployments. It has not been publicly certified by Amazon.
 
-Keep this skill in **Development**, limited to your own Amazon account and explicitly trusted test accounts. The application ID authenticates the skill, not the individual household or speaker. Do not publish it for public distribution with one shared gateway credential; first add per-user authorization/account linking and per-household isolation.
+The default `ENERGY_VOICE_MODE=personal` uses one operator-managed gateway. Keep that mode in **Development**, limited to your own Amazon account and explicitly trusted test accounts. The application ID authenticates the skill, not a household or speaker. Public distribution requires `ENERGY_VOICE_MODE=multi_household`, the account-linking setup below, and completion of the certification and release checks.
+
+## Multiple households and account linking
+
+Set up the [multi-household stack and account linking](docs/account-linking.md) before inviting separate households. The complete [deployment example](deploy/multi-household/README.md) includes a production-mode Keycloak identity provider, PostgreSQL, the Alexa webhook, and a separate connection portal. It runs on your own server; it does not require a paid identity service or a Cloudflare upgrade. Cerbo GX continues to supply telemetry only.
+
+```text
+Homeowner → connection portal → Keycloak sign-in → encrypted household connection
+Alexa app → Keycloak account linking → scoped account token
+Signed Alexa request → validate account token → that household's IGW → speech
+```
+
+Each identity-provider account owns one home's IGW connection. Different homes use different accounts and read tokens. The portal and Alexa clients share the same issuer and stable subject identifiers. This version does not select between multiple homes in one account or use individual Alexa voice profiles; anyone able to use the linked Amazon account's Echo may hear that home's reports.
+
+A homeowner signs in to the portal, enters their public HTTPS `/v1/energy` URL, a dedicated IGW read token, and optional Cloudflare Access service credentials. **Verify and save connection** checks the gateway once. They then enable the skill in Alexa and link the same Home Energy account. A missing or invalid account token produces Alexa's **LinkAccount** card; a linked account without a configured home receives setup instructions.
+
+Every energy request validates its account token with the identity provider. Only that account's encrypted connection is selected; there is no fallback to `IGW_URL` or the operator's home in multi-household mode. Tokens from the portal client cannot authorize Alexa requests. IGW credentials are never sent to Amazon. Public gateway requests reject private or special IPs, validate every DNS answer, pin the network destination while retaining hostname TLS verification, and reject redirects. Private LAN-only gateway addresses remain supported only in personal mode.
+
+The portal can replace a connection or **Disconnect this home**, which deletes its saved credentials and prevents new reports. A request already in progress may finish. Disable the skill in Alexa and revoke the provider session when unlinking account access; portal sign-out alone does not revoke Alexa. Storage and its encryption key need separate private backups. See the guide for recovery, revocation, account deletion, and release verification.
+
+The existing Worker relay remains restricted to `POST /alexa`. The portal and identity provider need separately configured HTTPS routes; the old relay cannot carry browser sign-in or OAuth token traffic. The SQLite-backed multi-household implementation is for a **single persistent server**, with several local Gunicorn workers allowed. Do not run it on independent replicas, a shared network filesystem, or the stateless Lambda example.
 
 ## Gateway contract
 
@@ -92,7 +112,7 @@ Download or clone this repository and run the commands from its root. Complete t
 5. Under **Build → Endpoint**, select **HTTPS**, put the complete URL ending in `/alexa` in **Default Region**, choose the option matching its trusted certificate, and save. A certificate whose wildcard covers this hostname uses the wildcard/subdomain option. **Inbound Alexa must not face a browser login, Access challenge, or service-token requirement.** Alexa does not send your Cloudflare credentials. Protect the outbound IGW endpoint separately.
 6. Open **Test**, select **Development** for skill testing and **English (US)** for the simulator. Enter `ask home energy for battery status` and confirm a spoken report. Test all five reports, then follow the Echo activation steps below. A successful model build alone does not test the backend.
 
-This private version does not implement Alexa account linking. Gateway credentials remain in the backend configuration; do not enter them into the Alexa app. Leave the skill in Development. Refer to Amazon's [skill creation guide](https://developer.amazon.com/en-US/docs/alexa/devconsole/create-a-skill-and-choose-the-interaction-model.html) and [Console testing guide](https://developer.amazon.com/en-US/docs/alexa/devconsole/test-your-skill.html) if Console labels change.
+These instructions install **personal mode**, without account linking. Gateway credentials remain in the backend configuration; do not enter them into the Alexa app. Leave this installation in Development. For a shared deployment, follow the separate [multi-household instructions](docs/account-linking.md). Refer to Amazon's [skill creation guide](https://developer.amazon.com/en-US/docs/alexa/devconsole/create-a-skill-and-choose-the-interaction-model.html) and [Console testing guide](https://developer.amazon.com/en-US/docs/alexa/devconsole/test-your-skill.html) if Console labels change.
 
 Inbound requests require Amazon's official ASK certificate-chain verification, SHA-256 signature over the original raw body, a 150-second timestamp tolerance, and the exact application ID in context and session. Missing configuration, wrong signatures/IDs, old requests, oversized bodies, or unknown request types fail closed. There is no verification-disable switch. See [Amazon HTTPS requirements](https://developer.amazon.com/en-US/docs/alexa/custom-skills/host-a-custom-skill-as-a-web-service.html) and [official Python verifier](https://github.com/alexa/alexa-skills-kit-sdk-for-python/tree/master/ask-sdk-webservice-support).
 
@@ -177,7 +197,7 @@ Before changing the Alexa Console endpoint, verify trusted TLS, `404` on other p
 
 ## Optional Lambda deployment
 
-Use only an AWS account authorized for this home project. The deployment script requires an explicitly selected profile. Lambda needs no external Python packages; the Alexa trigger authenticates invocation, and handler code independently verifies ID and timestamp.
+This template supports **personal mode only**. Use only an AWS account authorized for this home project. The deployment script requires an explicitly selected profile. Lambda needs no external Python packages; the Alexa trigger authenticates invocation, and handler code independently verifies ID and timestamp.
 
 1. Create the custom skill and import/build the model as above.
 2. In your chosen AWS account/region, create an existing Secrets Manager secret with a `read_token` JSON property. For outbound Access, create another with `client_id` and `client_secret`. Supply ARNs, never raw secret values, to CloudFormation. The deployment identity needs permission to resolve those secrets.
@@ -190,21 +210,22 @@ References: [custom skill Lambda hosting](https://developer.amazon.com/en-US/doc
 
 ## Failure behavior
 
-Each IGW request has a three-second socket timeout, no retry/redirect, a 32 KiB response cap, and certificate-validated HTTPS on port 443. Authentication/network errors, login HTML, bad JSON, unknown schema/status, invalid speech, disconnected-but-fresh reports, and envelopes older than 30 seconds produce: **Home energy data is unavailable right now. Please try again later.** No credentials or remote error bodies are spoken or logged.
+Every IGW request has no retry/redirect, a 32 KiB response cap, and certificate-validated HTTPS on port 443. Personal mode defaults to a three-second socket timeout. Multi-household mode uses a three-second total IGW deadline, reduced by time already spent verifying the Alexa request, checking its token, and loading its connection. The webhook shares a five-second request budget to leave relay response headroom. OAuth calls have a separate maximum two-second total deadline and bounded concurrency. Authentication/network errors, login HTML, bad JSON, unknown schema/status, invalid speech, disconnected-but-fresh reports, and envelopes older than 30 seconds produce: **Home energy data is unavailable right now. Please try again later.** No credentials or remote error bodies are spoken or logged.
 
-`IGW_TIMEOUT_SECONDS` can be 0.1–4; `IGW_MAX_AGE_SECONDS` can be 1–60. Five seconds of future clock skew is tolerated. There is no local response cache. Keep clocks synchronized. Envelope age does not prove sensor age: IGW must identify stale sensor data in its report status/text. The adapter preserves those explanations rather than substituting zero or stale fresh speech.
+In personal mode, `IGW_TIMEOUT_SECONDS` can be 0.1–4 and `IGW_MAX_AGE_SECONDS` can be 1–60. Shared household connections use a fixed 30-second envelope age limit. Five seconds of future clock skew is tolerated. There is no local response cache. Keep clocks synchronized. Envelope age does not prove sensor age: IGW must identify stale sensor data in its report status/text. The adapter preserves those explanations rather than substituting zero or stale fresh speech.
 
 ## Tests and physical Echo checklist
 
 ```bash
-PYTHONPATH=src python3 -m unittest discover -s tests -v
+.venv/bin/python -m pip install '.[multi-household]'
+.venv/bin/python -m unittest discover -s tests -v
 ```
 
-Tests cover five intents, help/stop/lifecycle, application IDs, timestamps, unsupported requests, GET authorization, redirects, size/contract validation, stale data, network errors, and webhook signature-verifier gating. With the optional webhook extra installed, tests additionally verify real SHA-256 signatures, tamper rejection, timestamp rejection, and Amazon certificate URL restrictions. CI builds the container and imports the real certificate verifier.
+Tests cover five intents, help/stop/lifecycle, application IDs, timestamps, unsupported requests, GET authorization, redirects, size/contract validation, stale data, network errors, and webhook signature-verifier gating. With the optional webhook extra installed, tests additionally verify real SHA-256 signatures, tamper rejection, timestamp rejection, and Amazon certificate URL restrictions. CI builds the container and verifies the real certificate verifier and WSGI processes. It also checks two-household isolation, OAuth claims and revocation behavior, portal browser binding and CSRF, encrypted storage and erasure races, public gateway DNS/TLS policy, and request budgets. A separate real-provider integration job starts disposable Keycloak and PostgreSQL containers using synthetic accounts. Run it locally with `PYTHONPATH=src python3 tests/integration/keycloak_smoke.py` when Docker and OpenSSL are available.
 
 - Check CLI values against IGW and Cerbo GX.
 - Complete [Echo activation](#enable-the-skill-on-your-echo), then try all five [everyday voice commands](#everyday-voice-commands).
 - Verify conversation launch, help, stop, and an unsupported request. The explicit `open home energy skill` phrase was verified in the Alexa+ simulator; the invocation name remains **home energy**.
 - In a test environment, exercise stale/disconnected/unconfigured readings and gateway failure. Do not interrupt live control equipment to test speech.
 
-Simulator and automated test success do not prove physical microphone recognition or playback. Public distribution would additionally require per-household isolation and account linking before sharing the backend.
+Simulator and automated test success do not prove physical microphone recognition or playback. Before public distribution, deploy multi-household mode and complete the [account-linking acceptance checks](docs/account-linking.md#acceptance-before-public-release), including real Amazon linking, refresh, and tests on two authorized Echo accounts.

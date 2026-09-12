@@ -12,6 +12,11 @@ build/
 dist/
 .aws-sam/
 samconfig.toml
+private/
+*.sqlite3
+*.sqlite3-*
+*.sqlite
+*.sqlite-*
 
 # Terraform state, local inputs, saved plans, and diagnostics are private.
 **/.terraform/

@@ -15,7 +15,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
-      - run: python -m pip install .
+      - run: python -m pip install '.[multi-household]'
       - run: python -m unittest discover -s tests -v
       - run: python -m json.tool skill-package/interactionModels/custom/en-US.json > /dev/null
       - run: bash -n scripts/deploy-lambda.sh
@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - run: docker build --tag home-energy-test .
       - run: docker run --rm --entrypoint python home-energy-test -c 'from ask_sdk_webservice_support.verifier import RequestVerifier; RequestVerifier()'
-      - run: docker run --rm --volume "$PWD/tests:/tests:ro" --volume "$PWD/scripts:/scripts:ro" --entrypoint python home-energy-test -m unittest discover -s /tests -v
+      - run: docker run --rm --volume "$PWD/tests:/tests:ro" --volume "$PWD/scripts:/scripts:ro" --volume "$PWD/deploy/multi-household:/deploy/multi-household:ro" --entrypoint python home-energy-test -m unittest discover -s /tests -v
   worker-vpc:
     runs-on: ubuntu-latest
     steps:
@@ -34,6 +34,15 @@ jobs:
         with:
           node-version: '22'
       - run: node --test deploy/worker-vpc/relay.test.mjs
+  keycloak:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: PYTHONPATH=src python tests/integration/keycloak_smoke.py
   terraform:
     runs-on: ubuntu-latest
     strategy:

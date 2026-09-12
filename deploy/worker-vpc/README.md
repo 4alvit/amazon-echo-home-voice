@@ -39,9 +39,20 @@ connection or a successful Alexa invocation.
 
 [Workers VPC](https://developers.cloudflare.com/workers-vpc/configuration/vpc-services/)
 is currently beta and available without an additional VPC charge across Workers
-plans; normal Workers request and compute limits or charges still apply. Verify
-current account access and pricing before deployment. The account needs permission to create a VPC
-Service and bind it to a Worker.
+plans. This deployment must remain on **Workers Free**: do not add a payment
+method, start a paid subscription, enable a paid service, or upgrade the account.
+If a required feature stops being free, stop and disable or replace that feature
+with an approved free alternative. Exceeding a quota is not authorization to
+upgrade. See [Workers VPC beta pricing](https://developers.cloudflare.com/workers-vpc/reference/pricing/).
+
+Workers Free currently allows 100,000 requests per day, shared across the
+account's Workers and reset at midnight UTC, with 10 ms of CPU time per request.
+Waiting for the NAS response is not CPU time. The relay runs on requests; it is
+not a continuously running billed server. These are daily limits, not a monthly
+pool. Quota exhaustion can make the endpoint unavailable. Check the current
+[Free plan limits](https://developers.cloudflare.com/workers/platform/limits/)
+before deployment. The account also needs permission to create a VPC Service
+and bind it to a Worker.
 
 The [tunnel requirements](https://developers.cloudflare.com/workers-vpc/configuration/tunnel/)
 include cloudflared version 2025.7.0 or later, QUIC transport, and outbound UDP
@@ -73,6 +84,10 @@ Worker endpoint, because Amazon cannot complete an interactive login.
 3. Select the account's `workers.dev` subdomain if one does not exist. Check the
    resulting public endpoint before publishing. The example leaves preview URLs
    and Worker observability disabled and does not add routes to existing zones.
+   Before creating an account namespace, inspect all existing Workers: an
+   existing enabled `workers.dev` or preview setting could expose another
+   project. Require their existing public scope to remain unchanged. Creating
+   this namespace does not transfer or rename your existing custom domain.
 4. With a current authenticated Wrangler installation, run these commands from
    this directory after reviewing the configuration:
 
@@ -113,6 +128,9 @@ then verify invocation on the intended Echo device separately. Confirm zone Bot
 Fight Mode remains enabled. Keep any diagnostic logging limited to HTTP status,
 byte counts, and signature-header presence; never log the payload or signature.
 
-To roll back, restore the previous Alexa endpoint and disable or remove this
-Worker. Remove the dedicated VPC Service only after confirming nothing else uses
-it. Existing zone settings and the NAS verifier do not need to change.
+To roll back, select a previously verified working Alexa endpoint before
+disabling or removing this Worker. A retained direct endpoint that is still
+challenged by Bot Fight Mode is not a working automatic fallback; its non-beta
+configuration requires separate review and approval. Do not weaken shared zone
+protection as an incidental rollback step. Remove the dedicated VPC Service
+only after confirming nothing else uses it. Keep the NAS verifier enabled.

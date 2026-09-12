@@ -16,7 +16,7 @@ services:
     mem_limit: 384m
     # Synology kernels may not provide the CPU quota controller.
     cpu_shares: 256
-    # Requested where supported; the verified NAS kernel discards this limit.
+    # Enforcement requires host-kernel support for the PID cgroup controller.
     pids_limit: 64
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2).read()"]

@@ -1,0 +1,14 @@
+# Replace placeholders privately; never commit the populated terraform.tfvars.
+account_id     = "REPLACE_WITH_ACCOUNT_ID"
+zone_id        = "REPLACE_WITH_ZONE_ID"
+alexa_hostname = "alexa.example.com"
+tunnel_name    = "alexa-direct"
+
+# The native connector and webhook must share the NAS host network namespace.
+nas_webhook_port = 8091
+
+# Safe defaults: do not claim existing bot settings or disable protection.
+manage_bot_fight_mode                         = false
+bot_fight_mode_enabled                        = true
+acknowledge_zone_wide_bot_fight_mode_disable   = false
+existing_is_robots_txt_managed                = null

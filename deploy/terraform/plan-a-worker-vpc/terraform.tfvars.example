@@ -1,0 +1,7 @@
+# Replace placeholders locally. Never commit your populated tfvars or state.
+account_id        = "REPLACE_WITH_EXISTING_ACCOUNT_ID"
+tunnel_id         = "REPLACE_WITH_EXISTING_TUNNEL_UUID"
+workers_namespace = "existing-namespace"
+worker_name       = "alexa-energy-example"
+backend_port      = 8091
+publish           = false

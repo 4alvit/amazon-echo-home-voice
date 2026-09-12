@@ -12,7 +12,7 @@ IGW owns device selection, units, aggregation, freshness, and wording. The adapt
 
 The repository includes an English (US) interaction model with invocation name **home energy**, a Python Lambda handler, a signature-verified self-hosted HTTPS webhook, a dependency-free smoke CLI, mocked tests, Docker Compose, and an optional AWS SAM template.
 
-See the [dated installation and verification snapshot](docs/validation-2026-09-12.md) for completed checks and the remaining Alexa setup.
+See the [anonymized verification summary](docs/validation-2026-09-12.md) for completed checks and the remaining physical Echo test. Deployment examples contain placeholders, not an operator's account identifiers, network topology, credentials, or live energy readings.
 
 For a private installation on the home k3s cluster, see [deployment instructions](deploy/README.md) and [the ClusterIP workload](deploy/k3s.yaml). That path keeps the skill disabled until a real skill ID is configured.
 
@@ -84,8 +84,8 @@ Export both Cloudflare values when needed. The CLI does not need `ASK_SKILL_ID`.
    curl --fail http://127.0.0.1:8091/health
    ```
 
-4. Publish only the exact `/alexa` path on a dedicated hostname through your trusted TLS reverse proxy or Cloudflare Tunnel to `http://127.0.0.1:8091`; other paths must return `404`. A connector on another host cannot reach this loopback port. For a dedicated native connector on the same NAS, use [the route planning and deployment procedure](deploy/tunnel-routing.md). If the tunnel runs in another container on the same Docker host, use a private Docker network and route to `http://alexa:8080` instead. Keep the host port on loopback.
-5. Set the skill HTTPS endpoint to `https://voice.example.com/alexa` and choose the certificate option appropriate for your trusted certificate. **Inbound Alexa must not face a browser login, Access challenge, or service-token requirement.** Alexa does not send your Cloudflare credentials. Protect the outbound IGW endpoint separately.
+4. Choose [Plan A or Plan B](#cloudflare-deployment-plan-a-and-plan-b) below, or publish the exact `/alexa` path through your own trusted TLS reverse proxy. Other paths must return `404`. The provided Terraform examples require a native Tunnel connector on the same host as the backend, reaching `http://127.0.0.1:8091`. A connector on another host or inside an isolated container cannot reach that loopback port. Keep the backend's host port on loopback.
+5. Set the skill HTTPS endpoint to the URL produced by your chosen plan and select the certificate option appropriate for its trusted certificate. **Inbound Alexa must not face a browser login, Access challenge, or service-token requirement.** Alexa does not send your Cloudflare credentials. Protect the outbound IGW endpoint separately.
 6. Enable the Development testing stage and complete the simulator/Echo checklist below.
 
 Inbound requests require Amazon's official ASK certificate-chain verification, SHA-256 signature over the original raw body, a 150-second timestamp tolerance, and the exact application ID in context and session. Missing configuration, wrong signatures/IDs, old requests, oversized bodies, or unknown request types fail closed. There is no verification-disable switch. See [Amazon HTTPS requirements](https://developer.amazon.com/en-US/docs/alexa/custom-skills/host-a-custom-skill-as-a-web-service.html) and [official Python verifier](https://github.com/alexa/alexa-skills-kit-sdk-for-python/tree/master/ask-sdk-webservice-support).
@@ -94,8 +94,6 @@ The webhook extra pins the upstream [oscrypto OpenSSL parsing fix](https://githu
 
 The container runs without root and with a read-only filesystem. Compose publishes only `127.0.0.1:8091`. `/health` reports process availability and whether a skill ID is configured; it does not prove Alexa is enabled or IGW is reachable. Unsigned `POST /alexa` must return `400` after installation.
 
-If the existing zone's Bot Fight Mode challenges Amazon, the optional [Workers VPC relay](deploy/worker-vpc/README.md) provides a separate `workers.dev` endpoint through a fixed private service binding. It preserves signed bytes and the NAS verifier, and does not change the zone's security rules. Workers VPC is beta; local relay tests do not prove live transport. The dated validation snapshot records deployment and Amazon test status.
-
 For non-container development:
 
 ```bash
@@ -103,6 +101,42 @@ For non-container development:
 .venv/bin/python -m pip install --requirement requirements-webhook.lock
 .venv/bin/gunicorn --config python:amazon_echo_home_voice.gunicorn_config --bind 127.0.0.1:8091 --workers 2 --threads 4 --timeout 10 amazon_echo_home_voice.webhook:application
 ```
+
+## Cloudflare deployment: Plan A and Plan B
+
+Both plans keep Amazon signature, timestamp, and skill-ID verification in the backend. Neither gives Alexa direct access to IGW credentials or control commands. The backend still makes its authenticated read-only request to IGW; Home Assistant is not involved.
+
+### Plan A: Workers VPC relay
+
+```text
+Amazon → HTTPS on workers.dev → Worker → fixed VPC Service → Tunnel → backend → IGW
+```
+
+Use this plan to leave the existing zone's Bot Fight Mode and other protections unchanged. The Worker exposes only `POST /alexa`, forwards the original signed bytes to one private backend, and has no gateway credentials. The `workers.dev` address is Cloudflare's hosting domain; it does not replace or transfer your own domain. Preview URLs and request logging are disabled in the example.
+
+The [Plan A Terraform example](deploy/terraform/plan-a-worker-vpc/README.md) creates the relay and a narrowly scoped VPC Service using an existing, verified Tunnel and an existing Workers namespace that you supply. It does not adopt shared tunnel ingress or change unrelated Workers. The [relay implementation notes](deploy/worker-vpc/README.md) describe limits, verification, and the alternative Wrangler workflow; choose one tool to own these resources.
+
+**Workers VPC is an open beta.** Cloudflare currently provides VPC without an additional charge during beta; that does not promise permanent free availability. This recipe is intended for **Workers Free only**, with no payment method, paid subscription, or automatic upgrade. The current Free allowance is 100,000 requests per UTC day across the account and 10 ms of CPU per request; waiting for the backend is not CPU time. Quota exhaustion can interrupt service. If VPC becomes paid or unavailable, review Plan B before switching; never silently upgrade. Check [VPC pricing](https://developers.cloudflare.com/workers-vpc/reference/pricing/) and [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) before deployment.
+
+### Plan B: direct Cloudflare Tunnel, without Workers VPC
+
+```text
+Amazon → HTTPS on voice.example.com/alexa → dedicated Tunnel → backend → IGW
+```
+
+Use this plan when you need a route without the VPC beta dependency and accept the zone-wide Bot Fight Mode tradeoff. The [Plan B Terraform example](deploy/terraform/plan-b-direct-tunnel/README.md) creates a **new, dedicated** remotely managed Tunnel, its complete exact-path ingress, and a proxied DNS record. It does not overwrite an existing shared tunnel's routes. Connect that new tunnel to the backend host using a token kept outside Terraform and Git.
+
+Standard **Bot Fight Mode has no sensitivity setting or hostname/path exception**. WAF Skip rules and Page Rules cannot bypass it. If it challenges Amazon, this plan requires `bot_fight_mode_enabled = false` for the **entire zone**, affecting all its hostnames. The example leaves Bot Management adoption off and Bot Fight Mode enabled by default; disabling requires explicit configuration and review. Existing Bot Management ownership and robots settings must be reconciled first. Other WAF, Access, and geographical rules can still block Amazon and must be checked separately. See [Cloudflare's documented limitations](https://developers.cloudflare.com/bots/get-started/bot-fight-mode/).
+
+Disabling Bot Fight Mode does not disable the backend's signature checks or the separate IGW authentication. It also does not guarantee that the direct route works: validate a real Amazon-signed simulator invocation before switching away from Plan A. Restore Bot Fight Mode explicitly to roll back that setting; removing a Terraform resource from configuration is not a reliable settings rollback.
+
+### Reproduce, verify, and switch
+
+Start with the [Terraform preparation and privacy guide](deploy/terraform/README.md), then follow the chosen example. These are independent root modules, not two configurations to apply blindly together. Supply your own account, zone, namespace, and hostnames in ignored local variable files. Keep API tokens in your environment or secret manager; never commit state, plan files, connector tokens, runtime `.env`, or real identifiers.
+
+Install and configure the backend before publishing an endpoint. Run `terraform init`, `terraform fmt -check`, and `terraform validate`, inspect a saved plan, and apply only the changes you intend. Terraform does not create the Alexa skill, configure IGW, register a developer account, or prove an end-to-end voice response.
+
+Before changing the Alexa Console endpoint, verify trusted TLS, `404` on other paths, and rejection of unsigned `/alexa` requests. Then test all five reports with real Amazon simulator requests, followed by the physical Echo checklist. Keep the previous working route until its replacement succeeds. A direct route still challenged by Bot Fight Mode is a prepared fallback, not an automatic failover. No paid upgrade or shared-zone protection change is part of an automatic switch.
 
 ## Optional Lambda deployment
 

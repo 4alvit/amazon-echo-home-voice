@@ -12,5 +12,6 @@
   "notes": [
     "Validation-only policy: no synthetic beta/RC artifacts or tag-triggered stable releases.",
     "Python version matrix and webhook container tests remain required. No AWS/Alexa deployment or live voice requests."
-  ]
+  ],
+  "visibility": "public"
 }

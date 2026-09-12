@@ -8,6 +8,8 @@ Cerbo GX / Venus OS → IGW /v1/energy → this adapter → Alexa → Echo
 
 IGW owns device selection, units, aggregation, freshness, and wording. The adapter makes one authenticated GET and copies `reports.<name>.text` into an Alexa `PlainText` response. It has no MQTT credentials, calculations, or write commands. This repository replaces earlier Home Assistant YAML examples.
 
+Start with [creating the skill and installing its backend](#self-hosted-webhook-no-aws-account-needed), then [enable it on your Echo](#enable-the-skill-on-your-echo) and use the [voice commands](#everyday-voice-commands). There is no published Home Energy store listing to install from this repository: each operator creates a private development skill connected to their own gateway.
+
 ## Included and still required
 
 The repository includes an English (US) interaction model with invocation name **home energy**, a Python Lambda handler, a signature-verified self-hosted HTTPS webhook, a dependency-free smoke CLI, mocked tests, Docker Compose, and an optional AWS SAM template.
@@ -75,8 +77,10 @@ Export both Cloudflare values when needed. The CLI does not need `ASK_SKILL_ID`.
 
 ## Self-hosted webhook: no AWS account needed
 
-1. Create a custom skill in the [Alexa Developer Console](https://developer.amazon.com/alexa/console/ask), choose English (US) and your own backend. Copy its skill ID to `ASK_SKILL_ID` in `.env`.
-2. Import `skill-package/interactionModels/custom/en-US.json` in the model JSON editor, save, and build.
+Download or clone this repository and run the commands from its root. Complete the local `.env` setup above. You need an Amazon developer account and an Echo registered to that same Amazon account; the self-hosted option does not require an AWS account.
+
+1. In the [Alexa Developer Console](https://developer.amazon.com/alexa/console/ask), choose **Create Skill**. Use a display name such as **Home Energy**, **English (US)**, the **Custom** interaction model, and **Provision your own backend resources**. Start from scratch when prompted for a template. Copy this new skill's ID to `ASK_SKILL_ID` in your private `.env`.
+2. Open **Build → Interaction Model → JSON Editor**, replace the model with `skill-package/interactionModels/custom/en-US.json`, then save and build. Wait for a successful build. Verify that **Invocation** is **home energy**; the display name and spoken invocation are separate settings.
 3. Configure `.env`, then install the backend:
 
    ```bash
@@ -85,8 +89,10 @@ Export both Cloudflare values when needed. The CLI does not need `ASK_SKILL_ID`.
    ```
 
 4. Choose [Plan A or Plan B](#cloudflare-deployment-plan-a-and-plan-b) below, or publish the exact `/alexa` path through your own trusted TLS reverse proxy. Other paths must return `404`. The provided Terraform examples require a native Tunnel connector on the same host as the backend, reaching `http://127.0.0.1:8091`. A connector on another host or inside an isolated container cannot reach that loopback port. Keep the backend's host port on loopback.
-5. Set the skill HTTPS endpoint to the URL produced by your chosen plan and select the certificate option appropriate for its trusted certificate. **Inbound Alexa must not face a browser login, Access challenge, or service-token requirement.** Alexa does not send your Cloudflare credentials. Protect the outbound IGW endpoint separately.
-6. Enable the Development testing stage and complete the simulator/Echo checklist below.
+5. Under **Build → Endpoint**, select **HTTPS**, put the complete URL ending in `/alexa` in **Default Region**, choose the option matching its trusted certificate, and save. A certificate whose wildcard covers this hostname uses the wildcard/subdomain option. **Inbound Alexa must not face a browser login, Access challenge, or service-token requirement.** Alexa does not send your Cloudflare credentials. Protect the outbound IGW endpoint separately.
+6. Open **Test**, select **Development** for skill testing and **English (US)** for the simulator. Enter `ask home energy for battery status` and confirm a spoken report. Test all five reports, then follow the Echo activation steps below. A successful model build alone does not test the backend.
+
+This private version does not implement Alexa account linking. Gateway credentials remain in the backend configuration; do not enter them into the Alexa app. Leave the skill in Development. Refer to Amazon's [skill creation guide](https://developer.amazon.com/en-US/docs/alexa/devconsole/create-a-skill-and-choose-the-interaction-model.html) and [Console testing guide](https://developer.amazon.com/en-US/docs/alexa/devconsole/test-your-skill.html) if Console labels change.
 
 Inbound requests require Amazon's official ASK certificate-chain verification, SHA-256 signature over the original raw body, a 150-second timestamp tolerance, and the exact application ID in context and session. Missing configuration, wrong signatures/IDs, old requests, oversized bodies, or unknown request types fail closed. There is no verification-disable switch. See [Amazon HTTPS requirements](https://developer.amazon.com/en-US/docs/alexa/custom-skills/host-a-custom-skill-as-a-web-service.html) and [official Python verifier](https://github.com/alexa/alexa-skills-kit-sdk-for-python/tree/master/ask-sdk-webservice-support).
 
@@ -101,6 +107,37 @@ For non-container development:
 .venv/bin/python -m pip install --requirement requirements-webhook.lock
 .venv/bin/gunicorn --config python:amazon_echo_home_voice.gunicorn_config --bind 127.0.0.1:8091 --workers 2 --threads 4 --timeout 10 amazon_echo_home_voice.webhook:application
 ```
+
+## Enable the skill on your Echo
+
+After the backend and simulator work, enable your development skill in the Alexa mobile app:
+
+1. Sign in with the **same Amazon account** used in the Developer Console. The Echo must also be registered to that account. Set the Echo's language to **English (United States)** to match the shipped `en-US` model.
+2. Open the app's menu and **Skills & Games**. In the Alexa+ interface, the route is **More → Alexa+ Store → Browse Alexa Skills and Games**.
+3. Open **Your Skills → Dev**, select your skill's display name, and choose **Enable to Use** if it is not already enabled. A development skill is found in this private list, not by searching public store listings.
+4. Say **Alexa, ask home energy for battery status** to the Echo. Then try the other reports below.
+
+When testing Alexa on the phone itself, its Alexa language must also match `en-US`. Menu labels can vary by app version; Amazon documents the current [app activation and device testing steps](https://developer.amazon.com/en-US/docs/alexa/test/test-your-skill-overview.html#test-your-skill-with-the-alexa-app). Other Amazon accounts require a separately configured trusted test arrangement; installing this repository does not make the skill available to every household.
+
+## Everyday voice commands
+
+Use a complete request to start from outside the skill:
+
+- **Alexa, ask home energy for battery status.**
+- **Alexa, ask home energy for solar power.**
+- **Alexa, ask home energy for solar energy today.**
+- **Alexa, ask home energy for alarm status.**
+- **Alexa, ask home energy for system status.**
+
+To start a conversation, say **Alexa, open home energy skill**. After its welcome prompt, say **battery status**, **solar power**, **solar energy today**, **alarm status**, or **system status** without repeating the invocation. Say **help** for the available requests and **stop** or **cancel** to exit. Each energy report ends the session; use a complete request for the next report. Reports use the gateway's current English wording, including unavailable or stale-data explanations. See the [utterance catalog](docs/utterance-catalog.md) for additional supported phrases.
+
+## Installation troubleshooting
+
+- **Skill missing from Your Skills → Dev:** check the Amazon account, successful model build, Development testing, and matching locale. No public listing or certification is needed for this private setup.
+- **Alexa does not find Home Energy:** check the spoken invocation is `home energy`, then try the explicit `open home energy skill` phrase. Confirm the skill is enabled on the intended account and the device language is English (US).
+- **Skill response is HTTP 403:** inspect the selected endpoint's Cloudflare security events and authentication policies. A successful probe from your own network does not prove Amazon is allowed through. Follow the documented Plan A or Plan B; keep signature verification enabled.
+- **The skill says energy data is unavailable:** run the local `energy-voice status` check and inspect gateway reachability, the read token, report freshness, and optional outbound Access credentials. Keep logs and real configuration private.
+- **Simulator works but the Echo does not:** verify app enablement, account registration, device language, microphone, and volume. Simulator success does not establish physical recognition or playback.
 
 ## Cloudflare deployment: Plan A and Plan B
 
@@ -166,14 +203,8 @@ PYTHONPATH=src python3 -m unittest discover -s tests -v
 Tests cover five intents, help/stop/lifecycle, application IDs, timestamps, unsupported requests, GET authorization, redirects, size/contract validation, stale data, network errors, and webhook signature-verifier gating. With the optional webhook extra installed, tests additionally verify real SHA-256 signatures, tamper rejection, timestamp rejection, and Amazon certificate URL restrictions. CI builds the container and imports the real certificate verifier.
 
 - Check CLI values against IGW and Cerbo GX.
-- Enable Development testing and use the Echo/Alexa app signed into the same developer account, in English (US).
-- Say **Alexa, open home energy skill**, then ask a follow-up question. This explicit phrase was verified in the Alexa+ simulator; the invocation name remains **home energy**.
-- Say **Alexa, ask home energy what is the battery charge**.
-- Say **Alexa, ask home energy what is the solar power**.
-- Say **Alexa, ask home energy how much solar energy did we produce today**.
-- Say **Alexa, ask home energy are there any alarms**.
-- Say **Alexa, ask home energy what is the energy status**.
-- Verify help, stop, and an unsupported request.
+- Complete [Echo activation](#enable-the-skill-on-your-echo), then try all five [everyday voice commands](#everyday-voice-commands).
+- Verify conversation launch, help, stop, and an unsupported request. The explicit `open home energy skill` phrase was verified in the Alexa+ simulator; the invocation name remains **home energy**.
 - In a test environment, exercise stale/disconnected/unconfigured readings and gateway failure. Do not interrupt live control equipment to test speech.
 
 Simulator and automated test success do not prove physical microphone recognition or playback. Public distribution would additionally require per-household isolation and account linking before sharing the backend.

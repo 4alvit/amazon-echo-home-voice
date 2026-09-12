@@ -12,6 +12,8 @@ IGW owns device selection, units, aggregation, freshness, and wording. The adapt
 
 The repository includes an English (US) interaction model with invocation name **home energy**, a Python Lambda handler, a signature-verified self-hosted HTTPS webhook, a dependency-free smoke CLI, mocked tests, Docker Compose, and an optional AWS SAM template.
 
+See the [dated installation and verification snapshot](docs/validation-2026-09-12.md) for completed checks and the remaining Alexa setup.
+
 For a private installation on the home k3s cluster, see [deployment instructions](deploy/README.md) and [the ClusterIP workload](deploy/k3s.yaml). That path keeps the skill disabled until a real skill ID is configured.
 
 You can install the backend while developer registration is unfinished by leaving `ASK_SKILL_ID` empty. Health then reports `skill_configured: false`, and every Alexa request is rejected until a real skill ID is supplied.

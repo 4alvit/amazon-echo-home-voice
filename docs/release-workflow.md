@@ -31,6 +31,7 @@ copies; a green syntax/validate job is not a reviewed plan or a deployment.
 
 - Validation-only policy: no synthetic beta/RC artifacts or tag-triggered stable releases.
 - Python version matrix and webhook container tests remain required. No AWS/Alexa deployment or live voice requests.
+- Includes both portable Cloudflare Terraform modules added on main; local and callable checks use disposable copies with backend disabled and never plan/apply.
 
 For public repositories, merge and verify the workflows before enabling the
 additive Terraform **CI gate** ruleset. Where release/deployment workflows use

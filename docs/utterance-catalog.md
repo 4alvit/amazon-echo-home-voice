@@ -2,7 +2,7 @@
 
 Invocation name: **home energy**. This is an Alexa custom skill, so include its invocation name when starting a request.
 
-- **Alexa, open home energy** — welcome and help; starts a conversation.
+- **Alexa, open home energy skill** — welcome and help; starts a conversation. This explicit phrase was verified with Alexa+; the invocation name remains **home energy**.
 - **Alexa, ask home energy what is the battery charge** — `BatteryIntent`, IGW `reports.battery`.
 - **Alexa, ask home energy what is the solar power** — `SolarIntent`, IGW `reports.solar`.
 - **Alexa, ask home energy how much solar energy did we produce today** — `SolarTodayIntent`, IGW `reports.solar_today`.

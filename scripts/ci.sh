@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mode="${1:-all}"
-case "$mode" in syntax|unit|container|worker|all) ;; *) echo 'Usage: scripts/ci.sh [syntax|unit|container|worker|all]' >&2; exit 2 ;; esac
+case "$mode" in syntax|unit|container|worker|terraform|all) ;; *) echo 'Usage: scripts/ci.sh [syntax|unit|container|worker|terraform|all]' >&2; exit 2 ;; esac
 if [[ "$mode" == syntax || "$mode" == all ]]; then python3 scripts/validate-source.py; fi
 if [[ "$mode" == unit || "$mode" == all ]]; then
   PYTHONPATH="$PWD/src${PYTHONPATH:+:$PYTHONPATH}" python3 -m unittest discover -s tests -v
@@ -16,4 +16,8 @@ if [[ "$mode" == container || "$mode" == all ]]; then
 fi
 if [[ "$mode" == worker || "$mode" == all ]]; then
   node --test deploy/worker-vpc/relay.test.mjs
+fi
+
+if [[ "$mode" == terraform || "$mode" == all ]]; then
+  python3 scripts/validate-terraform.py
 fi

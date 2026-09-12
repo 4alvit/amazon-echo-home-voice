@@ -133,7 +133,7 @@ Tests cover five intents, help/stop/lifecycle, application IDs, timestamps, unsu
 
 - Check CLI values against IGW and Cerbo GX.
 - Enable Development testing and use the Echo/Alexa app signed into the same developer account, in English (US).
-- Say **Alexa, open home energy**, then ask a follow-up question.
+- Say **Alexa, open home energy skill**, then ask a follow-up question. This explicit phrase was verified in the Alexa+ simulator; the invocation name remains **home energy**.
 - Say **Alexa, ask home energy what is the battery charge**.
 - Say **Alexa, ask home energy what is the solar power**.
 - Say **Alexa, ask home energy how much solar energy did we produce today**.

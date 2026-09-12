@@ -1,6 +1,6 @@
 # Validation snapshot: September 12, 2026
 
-The backend is installed on Synology. A personal Alexa custom skill has been created and its exact ID configured. A dedicated HTTPS route exposes only the signature-verified `/alexa` endpoint, but Cloudflare Bot Fight Mode currently challenges Amazon's requests. Successful Alexa invocation and physical Echo playback remain unverified.
+The backend is installed on Synology. The personal Alexa custom skill is configured and all five report intents returned the expected English speech responses in the real Amazon simulator through the approved Workers VPC relay. The NAS retains Amazon signature verification. Physical Echo recognition and playback remain unverified. The original zone's Bot Fight Mode remains enabled.
 
 ## Code and build checks
 
@@ -37,11 +37,23 @@ All five `energy-voice` CLI commands completed with exit status `0` and report s
 
 These are separate live reads, so small numerical differences between the individual and combined reports are expected. They are a dated verification sample, not fixed expected values. The alarm statement is limited to the gateway's monitored sources.
 
-## Remaining end-to-end checks
+## Alexa Console and real signed requests
 
 The model was imported and built in the Alexa Console with zero errors. Amazon added `AMAZON.NavigateHomeIntent` automatically and displayed one warning; unsupported intents use the adapter's existing fallback. The HTTPS endpoint was saved using the wildcard-certificate option matching the verified certificate.
 
-Development testing is enabled. The initial simulator attempt reported that the skill was unsupported on that device, with no Skill I/O shown. An explicit invocation and a manual JSON test then reported an invalid skill response; the user observed HTTP `403`. The confirmed edge-policy cause is recorded below. Resolve that incompatibility before repeating the simulator and physical Echo checklist. Backend installation and authenticated gateway reads alone do not establish that Alexa can invoke or speak the skill.
+Development testing is enabled. The initial direct endpoint returned HTTP `403` to Amazon because of the confirmed edge-policy cause below. After deployment of the approved VPC relay, the skill's HTTPS endpoint was changed and its saved value verified by reloading the Alexa Console. The selected wildcard certificate option matches the new certificate's verified subject alternative names.
+
+All five real simulator invocations succeeded through Amazon's signing service, the Worker, the private VPC binding, the NAS verifier and the authenticated live gateway:
+
+- Battery status returned the gateway's battery charge report.
+- Solar power returned the current power report in kilowatts.
+- Solar energy today returned the daily generation report in kilowatt hours.
+- Alarm status returned the monitored-source alarm summary, including its scope wording.
+- System status returned the combined battery, power, daily energy and alarm report.
+
+These checks used actual live gateway data, not a local event fixture or mocked VPC binding. The NAS access log confirmed HTTP `200` for the real requests. Numeric values changed between sequential requests as expected. The remaining physical check is recognition and playback on the intended Echo, signed into the developer account with the skill in Development.
+
+The explicit launch phrase `open home energy skill` also succeeded in the Alexa+ simulator and returned the adapter's welcome and question prompt. The model's invocation name remains `home energy`; adding the word `skill` disambiguates this launch phrase in the tested client. Within that session, `help` returned the expected English help prompt and `stop` returned `Goodbye.` successfully.
 
 ## Dedicated HTTPS route
 
@@ -64,14 +76,26 @@ Cloudflare Security Events for the dedicated hostname and `/alexa` during the 17
 
 The existing home-IP allowlist skips remaining custom rules for listed addresses. The separate home-only block covers three other explicitly named hostnames; it does not cover the Alexa hostname. A zone-wide geographical rule can still affect other caller locations, while the current US/Korea rule skips remaining custom rules. None of these rules skips standard Bot Fight Mode. No Access application matches the Alexa hostname. Existing custom rules, bot settings and IGW Access were not modified.
 
-Temporary Gunicorn access logging was enabled with only method, path and response status, without request bodies, headers, IP addresses or credentials. The observed log window contained successful local health requests and no Alexa POST reaching the application. Remove this temporary logging configuration after diagnosis and final verification.
+Temporary Gunicorn access logging was enabled with only method, path and response status, without request bodies, headers, IP addresses or credentials. The initial blocked window contained successful local health requests and no Alexa POST reaching the application. The later VPC test window confirmed rejected probe requests and successful real Amazon requests. After the completed report and lifecycle tests, the temporary argument was removed and the original logging configuration restored.
 
-Cloudflare documents that standard Bot Fight Mode cannot be skipped through WAF custom rules or Page Rules; Super Bot Fight Mode supports scoped exceptions. The current account has one zone and no already configured Workers subdomain, so no alternative endpoint was assumed available or published. A separately reviewed deployment choice is required; the shared zone's protection was not disabled. See [Cloudflare's documented limitations](https://developers.cloudflare.com/bots/get-started/bot-fight-mode/) and [false-positive guidance](https://developers.cloudflare.com/bots/troubleshooting/false-positives/).
+Cloudflare documents that standard Bot Fight Mode cannot be skipped through WAF custom rules or Page Rules; Super Bot Fight Mode supports scoped exceptions but would require a different plan. The account had one zone and no Workers subdomain when investigated. The separately approved free VPC deployment below addresses the incompatibility without disabling the shared zone's protection. See [Cloudflare's documented limitations](https://developers.cloudflare.com/bots/get-started/bot-fight-mode/) and [false-positive guidance](https://developers.cloudflare.com/bots/troubleshooting/false-positives/).
 
-## Prepared Workers VPC alternative
+## Deployed Workers VPC relay
 
 The optional relay and its 40 dependency-free Node tests are implemented and reviewed. All 40 tests pass locally. CI runs them with Node 22. They cover unchanged signed bytes, isolated headers, the fixed VPC destination, bounded request/response bodies, rejected redirects and the complete six-second deadline. They mock the VPC binding and do not establish live connectivity.
 
-Read-only prerequisites were checked: the native NAS connector runs cloudflared 2026.7.3, uses the host network namespace, and exposes four active QUIC connections through its local metrics. The account's VPC service listing API is available and currently empty. A private candidate fixes the VPC service to NAS loopback port 8091 through the already verified single connector. No binding to the entire private network is proposed.
+Read-only prerequisites were checked: the native NAS connector runs cloudflared 2026.7.3, uses the host network namespace, and exposes four active QUIC connections through its local metrics. The deployed VPC service fixes its destination to NAS loopback HTTP port 8091 through the already verified single connector; no HTTPS port or alternate host is configured. The Worker has only this VPC Service binding, with no binding to the entire private network.
 
-The candidate uses a new `workers.dev` endpoint with preview URLs and observability disabled. Publication and changing the skill endpoint are pending explicit approval of that new address. No Workers subdomain, VPC Service or Worker has been created, and no paid plan or zone-wide protection change is part of this proposal. VPC is beta and normal Workers plan limits apply. The live private hop, Amazon-signed response and physical Echo still need verification after deployment.
+After explicit approval of the exact address, the account namespace, private VPC Service and Worker were created. The production `workers.dev` endpoint was enabled only after checking its fixed binding; preview URLs, observability and Logpush are disabled. The existing unrelated Worker retained its disabled `workers.dev`/preview settings and unchanged custom domain. Tunnel ingress, zone bot settings and IGW Access were unchanged. No payment method, paid service or subscription was added.
+
+TLS validated using the system trust store. The certificate is issued by Let's Encrypt and its wildcard covers the relay's account subdomain. Public probes returned `400` for missing signatures and `404` for `/`, `/health` and `/alexa/`. A request containing dummy signature headers and the JSON body `{}` returned `400` and appeared as `POST /alexa 400` in the sanitized NAS access log, proving the private binding reached the NAS verifier. A later real Amazon simulator request appeared as `POST /alexa 200`.
+
+The original direct hostname and its two ingress rules are retained for a separately reviewed non-beta fallback. It remains subject to the original zone protections and is not currently a working automatic fallback for Alexa. No sensitivity change, zone-wide Bot Fight Mode disablement or paid-plan upgrade was applied.
+
+## Free account constraint and quota snapshot
+
+The operator explicitly requires the Cloudflare account to remain Free, without adding payment methods, paid subscriptions or paid services. A quota or future paid requirement must result in stopping, disabling or replacing the affected feature with an approved free alternative, never an automatic upgrade. Workers VPC is an open beta currently available without an additional VPC charge; its future availability and terms can change.
+
+Workers Free currently shares 100,000 requests per UTC day across account Workers, resetting at midnight UTC, and allows 10 ms of CPU time per request; network waiting is excluded from CPU time. This is not a monthly pool or a continuously billed server. See [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) and [VPC beta pricing](https://developers.cloudflare.com/workers-vpc/reference/pricing/).
+
+The aggregate-only account query at 18:14:34 UTC reported 49 requests for the complete September 11 UTC day and 20 for September 12 through that timestamp, with zero reported errors. These represent 0.049% and 0.020% of the daily Free request allowance. Only the existing Worker had appeared in that analytics window; the newly deployed relay was not yet reported. Analytics lag must not be interpreted as zero new-relay usage. No request logs or bodies were collected for this quota check.

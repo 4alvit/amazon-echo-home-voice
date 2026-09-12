@@ -20,6 +20,8 @@ You can install the backend while developer registration is unfinished by leavin
 
 **Installing the backend does not create or enable an Alexa skill.** The Developer Console must contain a custom skill with this model and the installed endpoint; Development testing must be enabled. A physical Echo test is a separate step. No cloud accounts or credentials are included. This is an installable personal backend, not a publicly certified Alexa product or multi-household service.
 
+Keep this skill in **Development**, limited to your own Amazon account and explicitly trusted test accounts. The application ID authenticates the skill, not the individual household or speaker. Do not publish it for public distribution with one shared gateway credential; first add per-user authorization/account linking and per-household isolation.
+
 ## Gateway contract
 
 IGW must implement `GET /v1/energy` with a dedicated read-scoped token. Do not reuse its write/admin token. Required envelope:
@@ -82,7 +84,7 @@ Export both Cloudflare values when needed. The CLI does not need `ASK_SKILL_ID`.
    curl --fail http://127.0.0.1:8091/health
    ```
 
-4. Publish a dedicated hostname through your trusted TLS reverse proxy or Cloudflare Tunnel to `http://127.0.0.1:8091`. If the tunnel runs in another container, use a private Docker network and route to `http://alexa:8080` instead. Keep the host port on loopback.
+4. Publish only the exact `/alexa` path on a dedicated hostname through your trusted TLS reverse proxy or Cloudflare Tunnel to `http://127.0.0.1:8091`; other paths must return `404`. A connector on another host cannot reach this loopback port. For a dedicated native connector on the same NAS, use [the route planning and deployment procedure](deploy/tunnel-routing.md). If the tunnel runs in another container on the same Docker host, use a private Docker network and route to `http://alexa:8080` instead. Keep the host port on loopback.
 5. Set the skill HTTPS endpoint to `https://voice.example.com/alexa` and choose the certificate option appropriate for your trusted certificate. **Inbound Alexa must not face a browser login, Access challenge, or service-token requirement.** Alexa does not send your Cloudflare credentials. Protect the outbound IGW endpoint separately.
 6. Enable the Development testing stage and complete the simulator/Echo checklist below.
 
@@ -91,6 +93,8 @@ Inbound requests require Amazon's official ASK certificate-chain verification, S
 The webhook extra pins the upstream [oscrypto OpenSSL parsing fix](https://github.com/wbond/oscrypto/commit/d5f3437ed24257895ae1edd9e503cfb352e635a8) because its PyPI 1.3.0 release cannot recognize some current OpenSSL versions. Docker checks the real certificate verifier during its build. Gunicorn loads the ASK model and crypto stack before accepting requests to avoid a cold first voice response.
 
 The container runs without root and with a read-only filesystem. Compose publishes only `127.0.0.1:8091`. `/health` reports process availability and whether a skill ID is configured; it does not prove Alexa is enabled or IGW is reachable. Unsigned `POST /alexa` must return `400` after installation.
+
+If the existing zone's Bot Fight Mode challenges Amazon, the optional [Workers VPC relay](deploy/worker-vpc/README.md) provides a separate `workers.dev` endpoint through a fixed private service binding. It preserves signed bytes and the NAS verifier, and does not change the zone's security rules. Workers VPC is beta; local relay tests do not prove live transport. The dated validation snapshot records deployment and Amazon test status.
 
 For non-container development:
 

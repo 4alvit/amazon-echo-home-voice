@@ -6,7 +6,7 @@ This directory provides a private k3s deployment. It creates no ingress, Cloudfl
 
 The reviewed image was built in the Synology NAS Docker engine as `igw-alexa:voice-review`. The k3s node named `syn` is a separate Ubuntu VM at `192.168.175.130`; its containerd cannot use the NAS Docker image store automatically.
 
-For a service that will eventually share the existing IGW/tunnel infrastructure, use `k3s.yaml` on node `syn`. For a temporary installation check, NAS Compose is simpler: its host port is already restricted to `127.0.0.1:8091`, and it needs no image transfer. Choose one placement; neither proves that a skill is enabled or that an Echo can speak.
+Use `k3s.yaml` on node `syn` when the intended tunnel runs in that cluster. NAS Compose is simpler when a dedicated native tunnel connector already runs on the NAS: its host port stays restricted to `127.0.0.1:8091`, and it needs no image transfer. Choose one placement; neither proves that a skill is enabled or that an Echo can speak.
 
 ## k3s installation
 
@@ -62,3 +62,5 @@ For the reviewed image, copy `deploy/compose.nas.yaml` to `/volume1/docker/igw-a
 The repository-root `compose.yaml` is the build-from-source alternative and uses the same loopback binding. Do not run both manifests on the same host port.
 
 Check `http://127.0.0.1:8091/health` from the NAS. A tunnel running inside the Ubuntu VM cannot reach the NAS loopback port; do not widen that binding just to make it reachable. Move the service to k3s or design a private connection explicitly when the real Alexa endpoint is ready.
+
+If a dedicated native tunnel connector already runs in the NAS host network namespace, it can reach this loopback binding directly. Follow [the narrow HTTPS route procedure](tunnel-routing.md) after the actual skill ID is configured. The procedure verifies the connector's placement and preserves all existing tunnel rules and IGW Access protection.

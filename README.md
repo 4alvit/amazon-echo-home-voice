@@ -32,8 +32,8 @@ IGW must implement `GET /v1/energy` with a dedicated read-scoped token. Do not r
     "battery": {"status": "fresh", "text": "Battery charge is 75 percent."},
     "solar": {"status": "fresh", "text": "Solar power is 2.4 kilowatts."},
     "solar_today": {"status": "fresh", "text": "Solar energy today is 12 kilowatt hours."},
-    "alarms": {"status": "fresh", "text": "There are no active alarms."},
-    "status": {"status": "fresh", "text": "Battery charge is 75 percent. Solar power is 2.4 kilowatts. There are no active alarms."}
+    "alarms": {"status": "fresh", "text": "No active alarms in the monitored sources."},
+    "status": {"status": "fresh", "text": "Battery charge is 75 percent. Solar power is 2.4 kilowatts. No active alarms in the monitored sources."}
   }
 }
 ```

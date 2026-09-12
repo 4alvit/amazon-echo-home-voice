@@ -57,6 +57,8 @@ After the real skill exists, update `ASK_SKILL_ID` in the Secret and restart the
 
 ## NAS-only alternative
 
-The existing `compose.yaml` builds the same source and binds port 8091 to NAS loopback. With a protected `.env` containing the gateway configuration and an empty `ASK_SKILL_ID`, an operator can start it using `docker compose up --build -d`. To use the reviewed image directly, apply a local Compose override setting `image: igw-alexa:voice-review`, then use `docker compose up --no-build -d`.
+For the reviewed image, copy `deploy/compose.nas.yaml` to `/volume1/docker/igw-alexa/compose.yaml` and place the protected `.env` alongside it with mode `600`. The manifest pins the local image tag, prohibits pulls, binds port 8091 to NAS loopback, and caps memory, CPU, and process count. From that directory, run `docker compose up --no-build -d`. It creates only the dedicated `igw-alexa` container. Keep `ASK_SKILL_ID` empty until a real skill exists.
+
+The repository-root `compose.yaml` is the build-from-source alternative and uses the same loopback binding. Do not run both manifests on the same host port.
 
 Check `http://127.0.0.1:8091/health` from the NAS. A tunnel running inside the Ubuntu VM cannot reach the NAS loopback port; do not widen that binding just to make it reachable. Move the service to k3s or design a private connection explicitly when the real Alexa endpoint is ready.

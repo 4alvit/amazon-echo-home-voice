@@ -1,0 +1,36 @@
+name: Validate Automation Workflows
+
+on:
+  pull_request:
+    paths: ['.github/workflows/**']
+  push:
+    branches: ['main']
+    paths: ['.github/workflows/**']
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: Validate automation workflows
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Install checksum-verified actionlint
+        run: |
+          archive="$RUNNER_TEMP/actionlint.tar.gz"
+          curl --proto '=https' --proto-redir '=https' --fail --silent --show-error --location \
+            https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz \
+            --output "$archive"
+          printf '%s  %s\n' '8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8' "$archive" | sha256sum --check --strict
+          tar -xzf "$archive" -C "$RUNNER_TEMP" actionlint
+      - name: Validate the automation callers and this workflow
+        run: |
+          "$RUNNER_TEMP/actionlint" \
+            .github/workflows/auto-approve.yml \
+            .github/workflows/auto-merge.yml \
+            .github/workflows/workflow-validation.yml

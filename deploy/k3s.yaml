@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: igw-alexa
-  namespace: synology-apps
+  namespace: home-energy
   labels:
     app: igw-alexa
 spec:
@@ -15,8 +15,6 @@ spec:
       labels:
         app: igw-alexa
     spec:
-      nodeSelector:
-        kubernetes.io/hostname: syn
       automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
@@ -26,8 +24,8 @@ spec:
           type: RuntimeDefault
       containers:
         - name: alexa
-          # Import the reviewed image into the syn node's containerd before applying.
-          image: docker.io/library/igw-alexa:voice-review
+          # Import this local image into every eligible node before applying.
+          image: docker.io/library/amazon-echo-home-voice:local
           imagePullPolicy: Never
           ports:
             - name: http
@@ -77,7 +75,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: igw-alexa
-  namespace: synology-apps
+  namespace: home-energy
 spec:
   type: ClusterIP
   selector:

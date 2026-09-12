@@ -12,3 +12,21 @@ build/
 dist/
 .aws-sam/
 samconfig.toml
+
+# Terraform state, local inputs, saved plans, and diagnostics are private.
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.*
+*.tfplan
+*.tfplan.*
+plan*.json
+terraform*.log
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+!*.tfvars.example

@@ -1,0 +1,19 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "home energy",
+      "intents": [
+        {"name": "BatteryIntent", "slots": [], "samples": ["what is the battery charge", "how much battery is left", "battery charge", "battery status"]},
+        {"name": "SolarIntent", "slots": [], "samples": ["what is the solar power", "how much solar power are we generating", "solar power", "current solar generation"]},
+        {"name": "SolarTodayIntent", "slots": [], "samples": ["how much solar energy did we produce today", "what is today's solar energy", "solar energy today", "today's solar production"]},
+        {"name": "AlarmStatusIntent", "slots": [], "samples": ["are there any alarms", "what are the active alarms", "alarm status", "system alarms"]},
+        {"name": "StatusIntent", "slots": [], "samples": ["what is the energy status", "home energy status", "system status", "give me an energy report"]},
+        {"name": "AMAZON.HelpIntent", "samples": []},
+        {"name": "AMAZON.StopIntent", "samples": []},
+        {"name": "AMAZON.CancelIntent", "samples": []},
+        {"name": "AMAZON.FallbackIntent", "samples": []}
+      ],
+      "types": []
+    }
+  }
+}

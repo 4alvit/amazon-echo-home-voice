@@ -3,3 +3,12 @@
 __pycache__/
 .idea/
 .vscode/
+.env
+.env.*
+!.env.example
+.venv/
+*.egg-info/
+build/
+dist/
+.aws-sam/
+samconfig.toml

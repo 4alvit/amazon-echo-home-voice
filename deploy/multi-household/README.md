@@ -2,7 +2,7 @@
 
 This separate Compose project adds a Keycloak identity provider, PostgreSQL, the Alexa webhook, and a connection portal. It requires an ordinary Linux server with Docker Compose, persistent storage, and a trusted TLS reverse proxy. Run it on a server or capable NAS, not on Cerbo GX. It does not provision cloud services, enable a paid plan, or modify an existing personal deployment.
 
-Keycloak and PostgreSQL are self-hosted open-source software. Their software does not require a paid account; the operator supplies hosting, storage, certificates, and an existing domain. Image versions are pinned to the verified [Keycloak 26.7.3 release](https://www.keycloak.org/downloads) and [PostgreSQL 17.11](https://www.postgresql.org/docs/release/17.11/). Review upstream security releases before a new installation. Pin tested image digests in your private deployment when reproducible image contents are required.
+Keycloak and PostgreSQL are self-hosted open-source software. Their software does not require a paid account; the operator supplies hosting, storage, certificates, and an existing domain. Images are pinned by version and verified multi-platform index digest to [Keycloak 26.7.3](https://www.keycloak.org/downloads) and [PostgreSQL 17.11](https://www.postgresql.org/docs/release/17.11/). Review upstream security releases before a new installation; update versions and digests together after testing.
 
 Read the [account-linking and household guide](../../docs/account-linking.md) before starting. This scaffold is for one server. The household database is SQLite and must be on local storage shared by the two application containers; this is not a stateless Lambda or multi-server deployment.
 
@@ -96,4 +96,14 @@ Do not run `docker compose down --volumes` unless you intentionally want to dele
 
 ## Validation status
 
-The realm generator has automated checks for separated audiences/scopes, PKCE-only authorization code flow, rejected unsafe redirects, configuration drift, and private non-overwriting output. Compose can be checked without starting containers using `docker compose config --quiet` after private values are configured. These checks do not establish a successful Keycloak import, real Amazon OAuth exchange, TLS routing, or physical Echo operation. Complete the [two-household acceptance checklist](../../docs/account-linking.md#acceptance-before-public-release) on the deployment before requesting public certification.
+The realm generator has automated checks for separated audiences/scopes, PKCE-only authorization code flow, rejected unsafe redirects, configuration drift, private non-overwriting output, and secret generation without console disclosure. Compose can be checked without starting containers using `docker compose config --quiet` after private values are configured.
+
+From the repository root, run the opt-in real-provider smoke test with Docker, OpenSSL, and Python 3.11 or newer:
+
+```bash
+PYTHONPATH=src python3 tests/integration/keycloak_smoke.py
+```
+
+It creates isolated PostgreSQL and Keycloak containers, a synthetic realm with two accounts, and a local HTTPS proxy with a trusted temporary certificate. It exercises both clients through actual browser authorization-code flows, then uses the application's OAuth client for token exchange and introspection. It checks intended audiences, shared subjects within a household, different subjects across households, PKCE and redirect rejection, scopes, client authentication, refresh rotation/replay rejection, and revocation. Authorization-code replay can invalidate a Keycloak client session, so that destructive check uses a separate grant. Containers, test database volumes, and private temporary configuration are removed afterward. A failed run retains a bounded, owner-only diagnostic log in the repository's ignored `private/` directory; remove it after debugging. No live identity provider or Amazon account is used.
+
+A passing local provider test does not establish a real Amazon OAuth exchange, public TLS routing, or physical Echo operation. Complete the [two-household acceptance checklist](../../docs/account-linking.md#acceptance-before-public-release) on the deployment before requesting public certification.

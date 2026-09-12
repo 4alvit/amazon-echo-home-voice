@@ -197,7 +197,7 @@ Before changing the Alexa Console endpoint, verify trusted TLS, `404` on other p
 
 ## Optional Lambda deployment
 
-Use only an AWS account authorized for this home project. The deployment script requires an explicitly selected profile. Lambda needs no external Python packages; the Alexa trigger authenticates invocation, and handler code independently verifies ID and timestamp.
+This template supports **personal mode only**. Use only an AWS account authorized for this home project. The deployment script requires an explicitly selected profile. Lambda needs no external Python packages; the Alexa trigger authenticates invocation, and handler code independently verifies ID and timestamp.
 
 1. Create the custom skill and import/build the model as above.
 2. In your chosen AWS account/region, create an existing Secrets Manager secret with a `read_token` JSON property. For outbound Access, create another with `client_id` and `client_secret`. Supply ARNs, never raw secret values, to CloudFormation. The deployment identity needs permission to resolve those secrets.
@@ -210,21 +210,22 @@ References: [custom skill Lambda hosting](https://developer.amazon.com/en-US/doc
 
 ## Failure behavior
 
-Each IGW request has a three-second socket timeout, no retry/redirect, a 32 KiB response cap, and certificate-validated HTTPS on port 443. Authentication/network errors, login HTML, bad JSON, unknown schema/status, invalid speech, disconnected-but-fresh reports, and envelopes older than 30 seconds produce: **Home energy data is unavailable right now. Please try again later.** No credentials or remote error bodies are spoken or logged.
+Every IGW request has no retry/redirect, a 32 KiB response cap, and certificate-validated HTTPS on port 443. Personal mode defaults to a three-second socket timeout. Multi-household mode uses a three-second total IGW deadline, reduced by time already spent verifying the Alexa request, checking its token, and loading its connection. The webhook shares a five-second request budget to leave relay response headroom. OAuth calls have a separate maximum two-second total deadline and bounded concurrency. Authentication/network errors, login HTML, bad JSON, unknown schema/status, invalid speech, disconnected-but-fresh reports, and envelopes older than 30 seconds produce: **Home energy data is unavailable right now. Please try again later.** No credentials or remote error bodies are spoken or logged.
 
-`IGW_TIMEOUT_SECONDS` can be 0.1–4; `IGW_MAX_AGE_SECONDS` can be 1–60. Five seconds of future clock skew is tolerated. There is no local response cache. Keep clocks synchronized. Envelope age does not prove sensor age: IGW must identify stale sensor data in its report status/text. The adapter preserves those explanations rather than substituting zero or stale fresh speech.
+In personal mode, `IGW_TIMEOUT_SECONDS` can be 0.1–4 and `IGW_MAX_AGE_SECONDS` can be 1–60. Shared household connections use a fixed 30-second envelope age limit. Five seconds of future clock skew is tolerated. There is no local response cache. Keep clocks synchronized. Envelope age does not prove sensor age: IGW must identify stale sensor data in its report status/text. The adapter preserves those explanations rather than substituting zero or stale fresh speech.
 
 ## Tests and physical Echo checklist
 
 ```bash
-PYTHONPATH=src python3 -m unittest discover -s tests -v
+.venv/bin/python -m pip install '.[multi-household]'
+.venv/bin/python -m unittest discover -s tests -v
 ```
 
-Tests cover five intents, help/stop/lifecycle, application IDs, timestamps, unsupported requests, GET authorization, redirects, size/contract validation, stale data, network errors, and webhook signature-verifier gating. With the optional webhook extra installed, tests additionally verify real SHA-256 signatures, tamper rejection, timestamp rejection, and Amazon certificate URL restrictions. CI builds the container and imports the real certificate verifier.
+Tests cover five intents, help/stop/lifecycle, application IDs, timestamps, unsupported requests, GET authorization, redirects, size/contract validation, stale data, network errors, and webhook signature-verifier gating. With the optional webhook extra installed, tests additionally verify real SHA-256 signatures, tamper rejection, timestamp rejection, and Amazon certificate URL restrictions. CI builds the container and verifies the real certificate verifier and WSGI processes. It also checks two-household isolation, OAuth claims and revocation behavior, portal browser binding and CSRF, encrypted storage and erasure races, public gateway DNS/TLS policy, and request budgets. A separate real-provider integration job starts disposable Keycloak and PostgreSQL containers using synthetic accounts. Run it locally with `PYTHONPATH=src python3 tests/integration/keycloak_smoke.py` when Docker and OpenSSL are available.
 
 - Check CLI values against IGW and Cerbo GX.
 - Complete [Echo activation](#enable-the-skill-on-your-echo), then try all five [everyday voice commands](#everyday-voice-commands).
 - Verify conversation launch, help, stop, and an unsupported request. The explicit `open home energy skill` phrase was verified in the Alexa+ simulator; the invocation name remains **home energy**.
 - In a test environment, exercise stale/disconnected/unconfigured readings and gateway failure. Do not interrupt live control equipment to test speech.
 
-Simulator and automated test success do not prove physical microphone recognition or playback. Public distribution would additionally require per-household isolation and account linking before sharing the backend.
+Simulator and automated test success do not prove physical microphone recognition or playback. Before public distribution, deploy multi-household mode and complete the [account-linking acceptance checks](docs/account-linking.md#acceptance-before-public-release), including real Amazon linking, refresh, and tests on two authorized Echo accounts.

@@ -41,6 +41,8 @@ SPEC.loader.exec_module(GENERATOR)
 ISSUER = "https://auth.example.test/realms/home-energy"
 ALEXA_REDIRECT = "https://alexa.example.test/exact-callback"
 PORTAL_REDIRECT = "https://connect.example.test/callback"
+KEYCLOAK_IMAGE = "quay.io/keycloak/keycloak:26.7.3@sha256:ff4257d0d64efbe99ed1ddfaf07765cc3c36dc7518bf8324d41961327f441c54"
+POSTGRES_IMAGE = "postgres:17.11-bookworm@sha256:051f7b7b3abdd564d5d1bd1e8c4b9c1b6e77087d1dd22020ede611c096a272e0"
 
 
 class AuthorizationRejected(Exception):
@@ -160,6 +162,7 @@ def provider():
             "KC_DB_USERNAME=keycloak", f"KC_DB_PASSWORD={database_password}",
             "KC_HOSTNAME=https://auth.example.test", "KC_HOSTNAME_STRICT=true",
             "KC_HTTP_ENABLED=true", "KC_PROXY_HEADERS=xforwarded",
+            "JAVA_OPTS_KC_HEAP=-Xms128m -Xmx512m",
         ]) + "\n")
         certificate = directory / "tls.pem"
         key = directory / "tls.key"
@@ -175,7 +178,7 @@ def provider():
             docker("network", "create", name)
             db_name = name + "-db"
             containers.append(db_name)
-            docker("run", "--detach", "--name", db_name, "--network", name, "--env-file", str(directory / "postgres.env"), "postgres:17.11-bookworm")
+            docker("run", "--detach", "--name", db_name, "--network", name, "--env-file", str(directory / "postgres.env"), POSTGRES_IMAGE)
             for _ in range(60):
                 ready = subprocess.run(["docker", "exec", db_name, "pg_isready", "-U", "keycloak", "-d", "keycloak"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 if ready.returncode == 0:
@@ -188,7 +191,7 @@ def provider():
             docker("run", "--detach", "--name", keycloak_name, "--network", name,
                    "--publish", "127.0.0.1::8080", "--env-file", str(directory / "keycloak.env"),
                    "--mount", f"type=bind,src={realm_path},dst=/opt/keycloak/data/import/home-energy-realm.json,readonly",
-                   "quay.io/keycloak/keycloak:26.7.3", "start", "--import-realm")
+                   KEYCLOAK_IMAGE, "start", "--import-realm")
             upstream_port = int(docker("port", keycloak_name, "8080/tcp").rsplit(":", 1)[1])
 
             class Proxy(BaseHTTPRequestHandler):
@@ -244,7 +247,8 @@ def provider():
             def opener(*handlers):
                 return build_opener(ProxyHandler({}), TestTLS(), NoRedirects(), *handlers)
 
-            for _ in range(120):
+            readiness_deadline = time.monotonic() + 300
+            while time.monotonic() < readiness_deadline:
                 try:
                     with opener().open(ISSUER + "/.well-known/openid-configuration", timeout=2) as response:
                         discovery = json.load(response)
@@ -263,6 +267,17 @@ def provider():
                 portal_redirect_uri=PORTAL_REDIRECT,
             )
             yield config, CheckedOAuthClient(config, opener=opener()), opener, password
+        except Exception:
+            # Keep a bounded, private startup diagnostic after failed runs so a
+            # failure can be investigated without keeping containers running.
+            diagnostics = []
+            for container in containers:
+                for arguments in (("inspect", "--format", "{{json .State}}", container),
+                                  ("logs", "--tail", "80", container)):
+                    result = subprocess.run(["docker", *arguments], capture_output=True, text=True)
+                    diagnostics.append(result.stdout + result.stderr)
+            private_text(private_directory / (name + "-failure.log"), "\n".join(diagnostics))
+            raise
         finally:
             if server is not None:
                 server.shutdown()
@@ -295,8 +310,12 @@ def authorize(config, make_opener, username, password, role, *, pkce=True, redir
                 error.close()
                 if location.startswith(redirect + "?"):
                     query = parse_qs(urlsplit(location).query)
-                    if query.get("state") != [state] or "code" not in query:
-                        raise RuntimeError("The real OAuth callback did not contain the expected code and state.")
+                    if query.get("state") != [state]:
+                        raise RuntimeError("The real OAuth callback did not contain the expected state.")
+                    if "error" in query and "code" not in query:
+                        raise AuthorizationRejected
+                    if len(query.get("code", [])) != 1 or "error" in query:
+                        raise RuntimeError("The real OAuth callback did not contain one authorization code.")
                     return query["code"][0], verifier
                 request = Request(location)
                 continue

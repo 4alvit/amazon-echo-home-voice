@@ -26,3 +26,11 @@ jobs:
       - run: docker build --tag home-energy-test .
       - run: docker run --rm --entrypoint python home-energy-test -c 'from ask_sdk_webservice_support.verifier import RequestVerifier; RequestVerifier()'
       - run: docker run --rm --volume "$PWD/tests:/tests:ro" --volume "$PWD/scripts:/scripts:ro" --entrypoint python home-energy-test -m unittest discover -s /tests -v
+  worker-vpc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: node --test deploy/worker-vpc/relay.test.mjs

@@ -94,6 +94,8 @@ The webhook extra pins the upstream [oscrypto OpenSSL parsing fix](https://githu
 
 The container runs without root and with a read-only filesystem. Compose publishes only `127.0.0.1:8091`. `/health` reports process availability and whether a skill ID is configured; it does not prove Alexa is enabled or IGW is reachable. Unsigned `POST /alexa` must return `400` after installation.
 
+If the existing zone's Bot Fight Mode challenges Amazon, the optional [Workers VPC relay](deploy/worker-vpc/README.md) provides a separate `workers.dev` endpoint through a fixed private service binding. It preserves signed bytes and the NAS verifier, and does not change the zone's security rules. Workers VPC is beta; local relay tests do not prove live transport. The dated validation snapshot records deployment and Amazon test status.
+
 For non-container development:
 
 ```bash

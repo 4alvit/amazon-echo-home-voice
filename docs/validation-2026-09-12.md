@@ -1,6 +1,6 @@
 # Validation snapshot: September 12, 2026
 
-The backend is installed on Synology. A personal Alexa custom skill has been created and its exact ID configured. A dedicated HTTPS route now exposes only the signature-verified `/alexa` endpoint. Physical Echo recognition and playback have not been tested.
+The backend is installed on Synology. A personal Alexa custom skill has been created and its exact ID configured. A dedicated HTTPS route exposes only the signature-verified `/alexa` endpoint, but Cloudflare Bot Fight Mode currently challenges Amazon's requests. Successful Alexa invocation and physical Echo playback remain unverified.
 
 ## Code and build checks
 
@@ -41,7 +41,7 @@ These are separate live reads, so small numerical differences between the indivi
 
 The model was imported and built in the Alexa Console with zero errors. Amazon added `AMAZON.NavigateHomeIntent` automatically and displayed one warning; unsupported intents use the adapter's existing fallback. The HTTPS endpoint was saved using the wildcard-certificate option matching the verified certificate.
 
-Development testing is enabled. Complete a successful simulator invocation and the physical Echo checklist in the main README. The initial simulator attempt reported that the skill was unsupported on that device, with no Skill I/O shown; this does not establish whether the backend received a request. Backend installation and authenticated gateway reads alone do not establish that Alexa can invoke or speak the skill.
+Development testing is enabled. The initial simulator attempt reported that the skill was unsupported on that device, with no Skill I/O shown. An explicit invocation and a manual JSON test then reported an invalid skill response; the user observed HTTP `403`. The confirmed edge-policy cause is recorded below. Resolve that incompatibility before repeating the simulator and physical Echo checklist. Backend installation and authenticated gateway reads alone do not establish that Alexa can invoke or speak the skill.
 
 ## Dedicated HTTPS route
 
@@ -57,3 +57,21 @@ Public checks with validated HTTPS:
 - `POST /alexa/`: `404`.
 
 The certificate is issued by Google Trust Services and covers the dedicated subdomain through its parent-zone wildcard. These checks establish routing and unsigned rejection only; Amazon-signed and physical Echo results must be recorded separately.
+
+## Confirmed Amazon request rejection
+
+Cloudflare Security Events for the dedicated hostname and `/alexa` during the 17:48–17:49 UTC tests recorded `action: managed_challenge`, `source: botFight`, and `ruleId: bot_fight_mode`. The requesting client identified itself as Apache HttpClient on Java 17. The zone uses the Free plan and its bot-management API reports `fight_mode: true`. This is direct evidence of Bot Fight Mode blocking the voice request; it is not an inference from the HTTP status or a Browser Integrity Check error.
+
+The existing home-IP allowlist skips remaining custom rules for listed addresses. The separate home-only block covers three other explicitly named hostnames; it does not cover the Alexa hostname. A zone-wide geographical rule can still affect other caller locations, while the current US/Korea rule skips remaining custom rules. None of these rules skips standard Bot Fight Mode. No Access application matches the Alexa hostname. Existing custom rules, bot settings and IGW Access were not modified.
+
+Temporary Gunicorn access logging was enabled with only method, path and response status, without request bodies, headers, IP addresses or credentials. The observed log window contained successful local health requests and no Alexa POST reaching the application. Remove this temporary logging configuration after diagnosis and final verification.
+
+Cloudflare documents that standard Bot Fight Mode cannot be skipped through WAF custom rules or Page Rules; Super Bot Fight Mode supports scoped exceptions. The current account has one zone and no already configured Workers subdomain, so no alternative endpoint was assumed available or published. A separately reviewed deployment choice is required; the shared zone's protection was not disabled. See [Cloudflare's documented limitations](https://developers.cloudflare.com/bots/get-started/bot-fight-mode/) and [false-positive guidance](https://developers.cloudflare.com/bots/troubleshooting/false-positives/).
+
+## Prepared Workers VPC alternative
+
+The optional relay and its 40 dependency-free Node tests are implemented and reviewed. All 40 tests pass locally. CI runs them with Node 22. They cover unchanged signed bytes, isolated headers, the fixed VPC destination, bounded request/response bodies, rejected redirects and the complete six-second deadline. They mock the VPC binding and do not establish live connectivity.
+
+Read-only prerequisites were checked: the native NAS connector runs cloudflared 2026.7.3, uses the host network namespace, and exposes four active QUIC connections through its local metrics. The account's VPC service listing API is available and currently empty. A private candidate fixes the VPC service to NAS loopback port 8091 through the already verified single connector. No binding to the entire private network is proposed.
+
+The candidate uses a new `workers.dev` endpoint with preview URLs and observability disabled. Publication and changing the skill endpoint are pending explicit approval of that new address. No Workers subdomain, VPC Service or Worker has been created, and no paid plan or zone-wide protection change is part of this proposal. VPC is beta and normal Workers plan limits apply. The live private hop, Amazon-signed response and physical Echo still need verification after deployment.

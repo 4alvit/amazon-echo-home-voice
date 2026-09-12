@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "home-energy-alexa-relay",
+  "main": "relay.mjs",
+  "compatibility_date": "2026-09-12",
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": false },
+  "vpc_services": [
+    {
+      "binding": "ALEXA_BACKEND",
+      "service_id": "REPLACE_WITH_EXACT_ALEXA_VPC_SERVICE_ID"
+    }
+  ]
+}

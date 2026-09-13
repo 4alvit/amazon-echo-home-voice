@@ -194,9 +194,12 @@ class OAuthTests(unittest.TestCase):
             stalled_response.read.side_effect = slow_read
             opener = Mock()
             opener.open.return_value = stalled_response
+            # Load the TLS trust store before measuring the stalled DNS request.
+            # Cold certificate loading can exceed this intentionally short deadline.
+            dns_opener = oauth.build_opener(oauth.ProxyHandler({}), oauth.NoRedirects())
             instance = oauth.OAuthClient(
                 replace(config(), timeout_seconds=0.1),
-                opener=opener if stage == "body" else None, clock=lambda: NOW,
+                opener=opener if stage == "body" else dns_opener, clock=lambda: NOW,
             )
             with self.subTest(stage=stage), patch.object(oauth, "_REQUEST_SLOTS", slots), patch.object(socket, "getaddrinfo", slow_dns):
                 try:

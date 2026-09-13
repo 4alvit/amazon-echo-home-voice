@@ -10,6 +10,12 @@ IGW owns device selection, units, aggregation, freshness, and wording. For each 
 
 For one home, start with [creating the skill and installing its backend](#self-hosted-webhook-no-aws-account-needed), then [enable it on your Echo](#enable-the-skill-on-your-echo). For a shared skill serving separate homes, use [account linking and household setup](#multiple-households-and-account-linking). Both modes use the same [voice commands](#everyday-voice-commands). This repository does not have a published Home Energy store listing; development, certification, and store distribution remain separate steps.
 
+<!-- ci-release-process:start -->
+## CI and deployment
+
+See [CI and deployment workflow](docs/release-workflow.md) for required checks and local commands. This repository uses validation-only policy; application release channels do not apply.
+<!-- ci-release-process:end -->
+
 ## Included and still required
 
 The repository includes an English (US) interaction model with invocation name **home energy**, a Python Lambda handler, a signature-verified self-hosted HTTPS webhook, a dependency-free smoke CLI, automated security and isolation tests, Docker Compose, and an optional personal-mode AWS SAM template. Multi-household mode adds OAuth account linking, a household connection portal, encrypted persistent storage, and a self-hosted Keycloak deployment example.

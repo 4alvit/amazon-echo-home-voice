@@ -1,0 +1,22 @@
+{
+  "repository": "4alvit/amazon-echo-home-voice",
+  "mode": "validation-only",
+  "default_branch": "main",
+  "validation_workflows": [
+    "validate.yml",
+    "test.yml"
+  ],
+  "local_checks": [
+    "bash scripts/ci.sh"
+  ],
+  "notes": [
+    "Validation-only policy: no synthetic beta/RC artifacts or tag-triggered stable releases.",
+    "Python version matrix and webhook container tests remain required. No AWS/Alexa deployment or live voice requests.",
+    "Includes both portable Cloudflare Terraform modules added on main; local and callable checks use disposable copies with backend disabled and never plan/apply."
+  ],
+  "visibility": "public",
+  "terraform_roots": [
+    "deploy/terraform/plan-a-worker-vpc",
+    "deploy/terraform/plan-b-direct-tunnel"
+  ]
+}

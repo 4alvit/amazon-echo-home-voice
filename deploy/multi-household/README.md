@@ -66,6 +66,8 @@ For the example hostnames:
 
 The identity token endpoint must accept Amazon's server-to-server OAuth requests without a browser challenge or Cloudflare Access service token. The portal callback must accept the user's browser redirect. **An operational `/alexa` Worker does not automatically publish Keycloak or the portal.** This scaffold intentionally does not widen that Worker, disable Bot Fight Mode, change shared tunnel routes, or upgrade Cloudflare. Verify an authorized HTTPS route for each new surface separately. Existing network allowlists or Bot Fight Mode can block OAuth as well as voice traffic.
 
+An optional [account-linking Workers VPC relay](../account-linking-vpc/README.md) implements these public path and header boundaries for separate portal and Keycloak Workers. Its local tests use synthetic bindings; publishing or changing a live identity provider is a separate deployment operation.
+
 Apply request-size limits, timeouts, and appropriate abuse controls at the trusted reverse proxy. Rate-limit portal `/login` and identity-provider login/token traffic without blocking legitimate Amazon refreshes. The portal caps pending login transactions at 1,000 per installation and expires them after five minutes; capacity exhaustion fails closed, so this cap is not a replacement for abuse controls. The application enforces its own input limits and CSRF checks; Keycloak's brute-force protection is enabled. Preserve the exact callback URLs and PKCE checks when configuring proxy rules.
 
 ## Create accounts and finish setup

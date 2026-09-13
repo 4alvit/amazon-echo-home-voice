@@ -1,0 +1,9 @@
+.wrangler/
+node_modules/
+wrangler*.jsonc
+wrangler*.json
+wrangler*.toml
+.dev.vars
+.dev.vars.*
+!wrangler.auth.example.jsonc
+!wrangler.portal.example.jsonc

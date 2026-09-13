@@ -59,6 +59,22 @@ def client(*responses):
 
 
 class OAuthTests(unittest.TestCase):
+    def test_token_exchange_and_both_introspection_clients_identify_the_http_client(self):
+        instance, opener = client(
+            response(b'{"access_token":"synthetic-portal-token","token_type":"Bearer"}'),
+            response(json.dumps(claims("energy-portal")).encode()),
+            response(),
+        )
+        instance.exchange_portal_code("synthetic-code", VERIFIER)
+        instance.introspect_alexa("synthetic-alexa-token")
+        requests = [call.args[0] for call in opener.open.call_args_list]
+        self.assertEqual([request.full_url for request in requests], [
+            config().token_url, config().introspection_url, config().introspection_url,
+        ])
+        self.assertEqual(len(requests), 3)
+        for request in requests:
+            self.assertEqual(request.get_header("User-agent"), "HomeEnergyAccountLinking/1.0")
+
     def test_introspection_uses_its_confidential_client_and_returns_only_validated_identity(self):
         instance, opener = client()
         identity = instance.introspect_alexa("synthetic-access-token")

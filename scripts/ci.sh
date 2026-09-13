@@ -15,7 +15,7 @@ if [[ "$mode" == container || "$mode" == all ]]; then
   docker run --rm --volume "$PWD/tests:/tests:ro" --volume "$PWD/scripts:/scripts:ro" --volume "$PWD/deploy/multi-household:/deploy/multi-household:ro" --entrypoint python home-energy-test -m unittest discover -s /tests -v
 fi
 if [[ "$mode" == worker || "$mode" == all ]]; then
-  node --test deploy/worker-vpc/relay.test.mjs
+  node --test deploy/worker-vpc/relay.test.mjs deploy/account-linking-vpc/relay.test.mjs
 fi
 
 if [[ "$mode" == terraform || "$mode" == all ]]; then

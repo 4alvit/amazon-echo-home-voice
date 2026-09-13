@@ -2,12 +2,14 @@
 
 import json
 import os
+import time
 from urllib.request import ProxyHandler, build_opener
 
 from .gateway import GatewayError, NoRedirects, _unique_object
 from .lambda_handler import lambda_handler, validate_event
 
 MAX_REQUEST_BYTES = 32768
+VOICE_BUDGET_SECONDS = 5.0
 
 
 def _download_certificate(url: str) -> bytes:
@@ -53,6 +55,9 @@ def _respond(start_response, status: str, payload: dict) -> list[bytes]:
 
 def application(environ, start_response):
     """Expose health and authenticated Alexa requests; never expose an unsigned API."""
+    # The relay allows six seconds. Include parsing and signature verification in
+    # the backend budget, leaving one second for transport and response delivery.
+    deadline = time.monotonic() + VOICE_BUDGET_SECONDS
     path = environ.get("PATH_INFO", "")
     method = environ.get("REQUEST_METHOD", "")
     if path == "/health" and method == "GET":
@@ -91,7 +96,7 @@ def application(environ, start_response):
         # The SDK has several certificate/crypto error types; all fail closed.
         return _respond(start_response, "400 Bad Request", {"error": "Invalid Alexa request"})
     try:
-        response = lambda_handler(event, None)
+        response = lambda_handler(event, None, deadline=deadline)
     except PermissionError:
         return _respond(start_response, "400 Bad Request", {"error": "Invalid Alexa request"})
     return _respond(start_response, "200 OK", response)

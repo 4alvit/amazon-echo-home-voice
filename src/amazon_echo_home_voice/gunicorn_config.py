@@ -4,6 +4,15 @@ preload_app = True
 
 
 def on_starting(server):
+    from amazon_echo_home_voice.accounts import mode
+
+    if mode() == "multi_household":
+        from amazon_echo_home_voice.oauth import OAuthConfig
+        from amazon_echo_home_voice.tenant_store import TenantStore
+
+        OAuthConfig.from_env()
+        TenantStore.from_env()
+
     from ask_sdk_core.serialize import DefaultSerializer
     from ask_sdk_model import RequestEnvelope
     from ask_sdk_webservice_support.verifier import RequestVerifier, TimestampVerifier

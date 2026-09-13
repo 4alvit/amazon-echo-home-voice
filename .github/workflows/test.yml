@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: ${{ matrix.python }}
-      - run: python -m pip install .
+      - run: python -m pip install '.[multi-household]'
       - run: bash scripts/ci.sh unit
   webhook:
     runs-on: ubuntu-latest
@@ -31,6 +31,15 @@ jobs:
         with:
           node-version: '22'
       - run: bash scripts/ci.sh worker
+  keycloak:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: bash scripts/ci.sh keycloak
   terraform:
     runs-on: ubuntu-latest
     steps:

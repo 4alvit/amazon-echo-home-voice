@@ -223,6 +223,19 @@ class HouseholdSkillTests(StoreFixture):
                     self.assertEqual(fetch.call_args.args[0], config)
                     self.assertNotIn("operator-secret", str(fetch.call_args))
 
+    def test_launch_authenticates_once_and_reads_only_the_linked_home(self):
+        for subject, config in (("one", self.first), ("two", self.second)):
+            with self.subTest(subject=subject), \
+                 patch.object(accounts.OAuthClient, "introspect_alexa", return_value=Identity(subject, ISSUER, 9999999999)) as auth, \
+                 patch.object(lambda_handler, "fetch_energy", return_value=payload()) as fetch:
+                value = self.linked(kind="LaunchRequest")
+                del value["request"]["intent"]
+                result = lambda_handler.lambda_handler(value, None)
+                auth.assert_called_once()
+                fetch.assert_called_once_with(config)
+                self.assertEqual(result["response"]["outputSpeech"]["text"], "Central status report.")
+                self.assertNotIn("operator-secret", str(result))
+
     def test_screen_reports_do_not_reuse_another_households_snapshot(self):
         def identity(token):
             return Identity("one" if token == "token-one" else "two", ISSUER, 9999999999)
@@ -267,9 +280,10 @@ class HouseholdSkillTests(StoreFixture):
         self.store.disconnect(ISSUER, "one")
         with patch.object(accounts.OAuthClient, "introspect_alexa", return_value=Identity("one", ISSUER, 9999999999)), \
              patch.object(lambda_handler, "fetch_energy") as fetch:
-            result = lambda_handler.lambda_handler(self.linked(), None)
-            self.assertIn("connect your gateway", result["response"]["outputSpeech"]["text"])
-            self.assertEqual(result["response"]["card"]["type"], "Simple")
+            for kind in ("IntentRequest", "LaunchRequest"):
+                result = lambda_handler.lambda_handler(self.linked(kind=kind), None)
+                self.assertIn("connect your gateway", result["response"]["outputSpeech"]["text"])
+                self.assertEqual(result["response"]["card"]["type"], "Simple")
             fetch.assert_not_called()
 
     def test_provider_outage_and_storage_failure_are_safe_unavailability(self):

@@ -143,12 +143,29 @@ class LambdaTests(unittest.TestCase):
             self.assertTrue(result["response"]["shouldEndSession"])
 
     @patch.object(lambda_handler, "fetch_energy")
-    def test_launch_help_stop_unknown_and_session_end_never_fetch(self, fetch):
+    def test_help_stop_unknown_and_session_end_never_fetch(self, fetch):
         for name in ("AMAZON.HelpIntent", "AMAZON.FallbackIntent", "AMAZON.StopIntent", "AMAZON.CancelIntent", "SetInverterModeIntent"):
             lambda_handler.lambda_handler(event(name), None)
-        self.assertFalse(lambda_handler.lambda_handler(event(kind="LaunchRequest"), None)["response"]["shouldEndSession"])
         self.assertEqual(lambda_handler.lambda_handler(event(kind="SessionEndedRequest"), None)["response"], {})
         fetch.assert_not_called()
+
+    @patch.object(lambda_handler, "fetch_energy")
+    def test_launch_without_an_intent_reads_the_status_report_once(self, fetch):
+        fetch.return_value = payload()
+        value = event(kind="LaunchRequest")
+        del value["request"]["intent"]
+        result = lambda_handler.lambda_handler(value, None)
+        fetch.assert_called_once()
+        self.assertEqual(result["response"]["outputSpeech"]["text"], "Central status report.")
+        self.assertTrue(result["response"]["shouldEndSession"])
+        self.assertNotIn("reprompt", result["response"])
+
+    @patch.object(lambda_handler, "fetch_energy", side_effect=gateway.GatewayError("private-details"))
+    def test_launch_reports_gateway_unavailability_instead_of_a_welcome(self, fetch):
+        result = lambda_handler.lambda_handler(event(kind="LaunchRequest"), None)
+        fetch.assert_called_once()
+        self.assertEqual(result["response"]["outputSpeech"]["text"], gateway.UNAVAILABLE_TEXT)
+        self.assertNotIn("private-details", json.dumps(result))
 
     @patch.object(lambda_handler, "fetch_energy")
     def test_auth_and_expired_requests_fail_before_gateway(self, fetch):

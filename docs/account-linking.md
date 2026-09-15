@@ -64,6 +64,10 @@ For each household:
 
 The Echo and simulator must use English (US), matching the shipped interaction model. Once linked, the user does not say an account name, token, URL, or home identifier. Every authorized request selects the connected home associated with the service account.
 
+For a separate test invocation, say **Alexa, ask home energy test for battery status** instead. Use the invocation configured in that skill's interaction model. Standard development-skill linking starts in the Alexa mobile app; the Developer Console simulator can exercise the linked skill but does not create the account link. The Alexa web chat is not a replacement for this flow. If the skill is already enabled but requests linking, open its settings in the Alexa app and choose **Link Account**.
+
+Enable APL separately for this development skill to test [screen responses](../README.md#screen-responses). Speech and visual reports use the same authenticated household connection. An unlinked or unconfigured account receives setup instructions, never another home's screen data.
+
 The provided realm issues five-minute access tokens and rotates refresh tokens. Alexa refreshes its token automatically while the identity session remains valid. The scaffold limits idle sessions to 30 days and total sessions to 90 days; after expiry or revocation, the user must link again. It does not request an unlimited offline grant. Portal sessions are short lived; signing in again is expected when their provider token expires.
 
 ## Disconnect, revoke, and delete

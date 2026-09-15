@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 import sqlite3
 import tempfile
+from threading import Barrier
+import time
 import unittest
 from unittest.mock import patch
 
@@ -105,15 +107,73 @@ class StoreTests(StoreFixture):
         self.assertTrue(all(self.store.session(token) is None for token in tokens))
 
     def test_concurrent_household_updates_do_not_cross_connections(self):
+        prior = [replace(self.first, read_token=f"prior-{index}") for index in range(16)]
+        updated = [replace(self.first, read_token=f"updated-{index}") for index in range(16)]
+        for index, config in enumerate(prior):
+            self.store.save_connection(ISSUER, str(index), config)
+        stores = [TenantStore(self.path, self.key) for _ in prior]
+        start = Barrier(4)
+
         def save(index):
-            store = TenantStore(self.path, self.key)
-            config = replace(self.first, read_token=f"synthetic-{index}")
-            store.save_connection(ISSUER, str(index), config)
-            return store.connection(ISSUER, str(index)).read_token
+            start.wait(timeout=10)
+            try:
+                stores[index].save_connection(ISSUER, str(index), updated[index])
+            except StoreError as error:
+                return error
+            return None
+
         with ThreadPoolExecutor(max_workers=4) as pool:
-            self.assertEqual(list(pool.map(save, range(16))), [f"synthetic-{index}" for index in range(16)])
+            outcomes = list(pool.map(save, range(16)))
+        self.assertIn(None, outcomes, "Concurrent writes must make progress")
+        # Short lock waits deliberately allow a busy response. Read after all
+        # writers finish so the isolation check does not race another commit.
+        for index, error in enumerate(outcomes):
+            if error is not None:
+                self.assert_sqlite_busy(error)
+            expected = updated[index] if error is None else prior[index]
+            self.assertEqual(self.store.connection(ISSUER, str(index)), expected)
+        with closing(sqlite3.connect(self.path)) as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM connections").fetchone()[0], 16)
+            self.assertEqual(db.execute("PRAGMA integrity_check").fetchone()[0], "ok")
         with self.assertRaises(StoreError):
             self.store.save_connection(ISSUER, "one", replace(self.first, public_only=False))
+
+    def assert_sqlite_busy(self, error):
+        self.assertEqual(str(error), "Household storage is unavailable")
+        self.assertIsInstance(error.__context__, sqlite3.OperationalError)
+        self.assertIn(error.__context__.sqlite_errorcode & 0xFF,
+                      (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED))
+
+    def test_busy_write_and_commit_fail_closed_without_changing_connections(self):
+        self.store.save_connection(ISSUER, "one", self.first)
+        self.store.save_connection(ISSUER, "two", self.second)
+        updated = replace(self.first, read_token="synthetic-replacement-token")
+        for statement in ("BEGIN IMMEDIATE", "BEGIN"):
+            with self.subTest(lock=statement):
+                with closing(sqlite3.connect(self.path)) as blocker:
+                    before = blocker.execute("SELECT owner, data FROM connections ORDER BY owner").fetchall()
+                    blocker.execute(statement)
+                    # A reserved writer lock rejects INSERT; a shared reader
+                    # lock permits INSERT but rejects COMMIT. Both must roll back.
+                    blocker.execute("SELECT data FROM connections").fetchall()
+                    try:
+                        started = time.monotonic()
+                        with patch("amazon_echo_home_voice.tenant_store.sqlite3.connect", wraps=sqlite3.connect) as connect:
+                            with self.assertRaises(StoreError) as caught:
+                                self.store.save_connection(ISSUER, "one", updated)
+                        self.assertLess(time.monotonic() - started, 5)
+                        self.assertEqual(connect.call_args.kwargs["timeout"], 0.25)
+                        self.assert_sqlite_busy(caught.exception)
+                    finally:
+                        blocker.rollback()
+                    self.assertEqual(blocker.execute("SELECT owner, data FROM connections ORDER BY owner").fetchall(), before)
+                    self.assertEqual(blocker.execute("PRAGMA integrity_check").fetchone()[0], "ok")
+                self.assertEqual(self.store.connection(ISSUER, "one"), self.first)
+                self.assertEqual(self.store.connection(ISSUER, "two"), self.second)
+        # A released lock restores normal writes without a retry in the runtime.
+        self.store.save_connection(ISSUER, "one", updated)
+        self.assertEqual(self.store.connection(ISSUER, "one"), updated)
+        self.assertEqual(self.store.connection(ISSUER, "two"), self.second)
 
     def test_operator_erasure_removes_only_target_household_and_all_its_sessions(self):
         for subject, config in (("one", self.first), ("two", self.second)):
@@ -159,9 +219,38 @@ class HouseholdSkillTests(StoreFixture):
                     value = self.linked(token)
                     value["request"]["intent"]["name"] = intent
                     result = lambda_handler.lambda_handler(value, None)
-                    self.assertNotIn("card", result["response"])
+                    self.assertEqual(result["response"]["card"]["type"], "Simple")
                     self.assertEqual(fetch.call_args.args[0], config)
                     self.assertNotIn("operator-secret", str(fetch.call_args))
+
+    def test_screen_reports_do_not_reuse_another_households_snapshot(self):
+        def identity(token):
+            return Identity("one" if token == "token-one" else "two", ISSUER, 9999999999)
+
+        def reports(config):
+            data = payload()
+            household = "first" if config == self.first else "second"
+            for report in data["reports"].values():
+                report["text"] = f"Synthetic {household} household report."
+            return data
+
+        with patch.object(accounts.OAuthClient, "introspect_alexa", side_effect=identity), \
+             patch.object(lambda_handler, "fetch_energy", side_effect=reports) as fetch:
+            for token, config, expected, other in (
+                ("token-one", self.first, "first", "second"),
+                ("token-two", self.second, "second", "first"),
+                ("token-one", self.first, "first", "second"),
+            ):
+                value = self.linked(token)
+                value["context"]["System"]["device"] = {
+                    "supportedInterfaces": {"Alexa.Presentation.APL": {}},
+                }
+                result = lambda_handler.lambda_handler(value, None)
+                text = result["response"]["directives"][0]["datasources"]["energy"]["reports"][0]["text"]
+                self.assertEqual(text, f"Synthetic {expected} household report.")
+                self.assertNotIn(f"Synthetic {other} household report.", str(result))
+                self.assertNotIn("operator-secret", str(result))
+                self.assertEqual(fetch.call_args.args[0], config)
 
     def test_missing_invalid_expired_revoked_tokens_never_use_operator_gateway(self):
         with patch.object(accounts.OAuthClient, "introspect_alexa", side_effect=InvalidToken("invalid")), \
@@ -180,7 +269,7 @@ class HouseholdSkillTests(StoreFixture):
              patch.object(lambda_handler, "fetch_energy") as fetch:
             result = lambda_handler.lambda_handler(self.linked(), None)
             self.assertIn("connect your gateway", result["response"]["outputSpeech"]["text"])
-            self.assertNotIn("card", result["response"])
+            self.assertEqual(result["response"]["card"]["type"], "Simple")
             fetch.assert_not_called()
 
     def test_provider_outage_and_storage_failure_are_safe_unavailability(self):
@@ -188,7 +277,7 @@ class HouseholdSkillTests(StoreFixture):
              patch.object(lambda_handler, "fetch_energy") as fetch:
             result = lambda_handler.lambda_handler(self.linked(), None)
             self.assertEqual(result["response"]["outputSpeech"]["text"], UNAVAILABLE_TEXT)
-            self.assertNotIn("card", result["response"])
+            self.assertEqual(result["response"]["card"]["type"], "Simple")
             fetch.assert_not_called()
         with patch.object(accounts.OAuthClient, "introspect_alexa", return_value=Identity("one", ISSUER, 9999999999)), \
              patch.dict(os.environ, {"TENANT_ENCRYPTION_KEY": "wrong"}), patch.object(lambda_handler, "fetch_energy") as fetch:

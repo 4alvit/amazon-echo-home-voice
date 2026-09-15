@@ -166,6 +166,8 @@ Successful APL reports leave the screen session available without reopening the 
 
 If only speech appears, first confirm APL was saved and the model rebuilt for the exact skill you invoked. A built-in screen or an Alexa Media Player display classification does not expose the device's supported APL version. Inspect a request from the actual device; a simulator result alone cannot establish physical-device compatibility. The retired **Display Interface (Legacy)** is not used.
 
+If Alexa+ answers with its own Energy Dashboard instead of opening the custom skill, explicitly say **Alexa, open the home energy skill**, then **battery status** or **energy status**. For the separate test invocation, say **Alexa, open the home energy test skill**. The simulator's Skill I/O must show an invocation of your skill; an answer from Amazon's built-in assistant does not test this backend.
+
 See Amazon's [APL configuration guide](https://developer.amazon.com/en-US/docs/alexa/alexa-presentation-language/apl-support-for-your-skill.html), [capability detection](https://developer.amazon.com/en-US/docs/alexa/alexa-presentation-language/use-apl-with-ask-sdk.html), [screen session behavior](https://developer.amazon.com/en-US/docs/alexa/custom-skills/manage-skill-session-and-session-attributes.html#how-devices-with-screens-affect-the-skill-session), and [response cards](https://developer.amazon.com/en-US/docs/alexa/custom-skills/include-a-card-in-your-skills-response.html).
 
 ## Everyday voice commands

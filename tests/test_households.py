@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 import sqlite3
 import tempfile
+from threading import Barrier
+import time
 import unittest
 from unittest.mock import patch
 
@@ -105,15 +107,73 @@ class StoreTests(StoreFixture):
         self.assertTrue(all(self.store.session(token) is None for token in tokens))
 
     def test_concurrent_household_updates_do_not_cross_connections(self):
+        prior = [replace(self.first, read_token=f"prior-{index}") for index in range(16)]
+        updated = [replace(self.first, read_token=f"updated-{index}") for index in range(16)]
+        for index, config in enumerate(prior):
+            self.store.save_connection(ISSUER, str(index), config)
+        stores = [TenantStore(self.path, self.key) for _ in prior]
+        start = Barrier(4)
+
         def save(index):
-            store = TenantStore(self.path, self.key)
-            config = replace(self.first, read_token=f"synthetic-{index}")
-            store.save_connection(ISSUER, str(index), config)
-            return store.connection(ISSUER, str(index)).read_token
+            start.wait(timeout=10)
+            try:
+                stores[index].save_connection(ISSUER, str(index), updated[index])
+            except StoreError as error:
+                return error
+            return None
+
         with ThreadPoolExecutor(max_workers=4) as pool:
-            self.assertEqual(list(pool.map(save, range(16))), [f"synthetic-{index}" for index in range(16)])
+            outcomes = list(pool.map(save, range(16)))
+        self.assertIn(None, outcomes, "Concurrent writes must make progress")
+        # Short lock waits deliberately allow a busy response. Read after all
+        # writers finish so the isolation check does not race another commit.
+        for index, error in enumerate(outcomes):
+            if error is not None:
+                self.assert_sqlite_busy(error)
+            expected = updated[index] if error is None else prior[index]
+            self.assertEqual(self.store.connection(ISSUER, str(index)), expected)
+        with closing(sqlite3.connect(self.path)) as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM connections").fetchone()[0], 16)
+            self.assertEqual(db.execute("PRAGMA integrity_check").fetchone()[0], "ok")
         with self.assertRaises(StoreError):
             self.store.save_connection(ISSUER, "one", replace(self.first, public_only=False))
+
+    def assert_sqlite_busy(self, error):
+        self.assertEqual(str(error), "Household storage is unavailable")
+        self.assertIsInstance(error.__context__, sqlite3.OperationalError)
+        self.assertIn(error.__context__.sqlite_errorcode & 0xFF,
+                      (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED))
+
+    def test_busy_write_and_commit_fail_closed_without_changing_connections(self):
+        self.store.save_connection(ISSUER, "one", self.first)
+        self.store.save_connection(ISSUER, "two", self.second)
+        updated = replace(self.first, read_token="synthetic-replacement-token")
+        for statement in ("BEGIN IMMEDIATE", "BEGIN"):
+            with self.subTest(lock=statement):
+                with closing(sqlite3.connect(self.path)) as blocker:
+                    before = blocker.execute("SELECT owner, data FROM connections ORDER BY owner").fetchall()
+                    blocker.execute(statement)
+                    # A reserved writer lock rejects INSERT; a shared reader
+                    # lock permits INSERT but rejects COMMIT. Both must roll back.
+                    blocker.execute("SELECT data FROM connections").fetchall()
+                    try:
+                        started = time.monotonic()
+                        with patch("amazon_echo_home_voice.tenant_store.sqlite3.connect", wraps=sqlite3.connect) as connect:
+                            with self.assertRaises(StoreError) as caught:
+                                self.store.save_connection(ISSUER, "one", updated)
+                        self.assertLess(time.monotonic() - started, 5)
+                        self.assertEqual(connect.call_args.kwargs["timeout"], 0.25)
+                        self.assert_sqlite_busy(caught.exception)
+                    finally:
+                        blocker.rollback()
+                    self.assertEqual(blocker.execute("SELECT owner, data FROM connections ORDER BY owner").fetchall(), before)
+                    self.assertEqual(blocker.execute("PRAGMA integrity_check").fetchone()[0], "ok")
+                self.assertEqual(self.store.connection(ISSUER, "one"), self.first)
+                self.assertEqual(self.store.connection(ISSUER, "two"), self.second)
+        # A released lock restores normal writes without a retry in the runtime.
+        self.store.save_connection(ISSUER, "one", updated)
+        self.assertEqual(self.store.connection(ISSUER, "one"), updated)
+        self.assertEqual(self.store.connection(ISSUER, "two"), self.second)
 
     def test_operator_erasure_removes_only_target_household_and_all_its_sessions(self):
         for subject, config in (("one", self.first), ("two", self.second)):

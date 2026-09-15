@@ -118,6 +118,8 @@ Download or clone this repository and run the commands from its root. Complete t
 5. Under **Build → Endpoint**, select **HTTPS**, put the complete URL ending in `/alexa` in **Default Region**, choose the option matching its trusted certificate, and save. A certificate whose wildcard covers this hostname uses the wildcard/subdomain option. **Inbound Alexa must not face a browser login, Access challenge, or service-token requirement.** Alexa does not send your Cloudflare credentials. Protect the outbound IGW endpoint separately.
 6. Open **Test**, select **Development** for skill testing and **English (US)** for the simulator. Enter `ask home energy for battery status` and confirm a spoken report. Test all five reports, then follow the Echo activation steps below. A successful model build alone does not test the backend.
 
+For devices with screens, also enable **Build → Interfaces → Alexa Presentation Language**, save, and rebuild the skill. See [screen responses](#screen-responses) for setup and verification.
+
 These instructions install **personal mode**, without account linking. Gateway credentials remain in the backend configuration; do not enter them into the Alexa app. Leave this installation in Development. For a shared deployment, follow the separate [multi-household instructions](docs/account-linking.md). Refer to Amazon's [skill creation guide](https://developer.amazon.com/en-US/docs/alexa/devconsole/create-a-skill-and-choose-the-interaction-model.html) and [Console testing guide](https://developer.amazon.com/en-US/docs/alexa/devconsole/test-your-skill.html) if Console labels change.
 
 Inbound requests require Amazon's official ASK certificate-chain verification, SHA-256 signature over the original raw body, a 150-second timestamp tolerance, and the exact application ID in context and session. Missing configuration, wrong signatures/IDs, old requests, oversized bodies, or unknown request types fail closed. There is no verification-disable switch. See [Amazon HTTPS requirements](https://developer.amazon.com/en-US/docs/alexa/custom-skills/host-a-custom-skill-as-a-web-service.html) and [official Python verifier](https://github.com/alexa/alexa-skills-kit-sdk-for-python/tree/master/ask-sdk-webservice-support).
@@ -144,6 +146,27 @@ After the backend and simulator work, enable your development skill in the Alexa
 4. Say **Alexa, ask home energy for battery status** to the Echo. Then try the other reports below.
 
 When testing Alexa on the phone itself, its Alexa language must also match `en-US`. Menu labels can vary by app version; Amazon documents the current [app activation and device testing steps](https://developer.amazon.com/en-US/docs/alexa/test/test-your-skill-overview.html#test-your-skill-with-the-alexa-app). Other Amazon accounts require a separately configured trusted test arrangement; installing this repository does not make the skill available to every household.
+
+## Screen responses
+
+The same voice requests can display English energy reports on compatible Alexa screens, including third-party devices that advertise Alexa Presentation Language (APL). A battery request shows the battery report; solar, today's solar energy, and alarms have their own reports. A home energy status request shows the four reports together. The screen uses the same validated IGW report text and freshness status as speech, without another gateway request. Missing or stale readings keep their explanations instead of becoming zero or appearing current.
+
+To enable visuals:
+
+1. In the Alexa Developer Console, open **Build → Interfaces** and enable **Alexa Presentation Language**. Keep the viewport profiles needed by your devices enabled, including portrait for portrait displays.
+2. **Save** the interface changes, then **Build skill** (called **Build Model** in some Console versions). Repeat this for each separate development skill. Deploying the backend alone does not enable the interface in Amazon.
+3. In **Test**, enable **Development** and the simulator's device display. Ask `ask home energy for battery status`, then request home energy status. Inspect the request's `context.System.device.supportedInterfaces` for `Alexa.Presentation.APL` and the response for `Alexa.Presentation.APL.RenderDocument`. Check the rendered layout in both portrait and landscape profiles.
+4. Repeat on the physical screen device using the skill's actual invocation name. A skill named **Home Energy Test** may use `home energy test`; its display name does not automatically change the invocation. Complete account linking first when using the shared service.
+
+APL is sent only when the request advertises support. The inline document uses APL 1.0 components and does not download images, fonts, or household data from external URLs. Alexa also receives a text card for its app/activity view; display of that card on a particular device is controlled by Alexa. Account-linking prompts retain the **LinkAccount** card. Voice-only devices keep their spoken responses.
+
+Responses stay within the relay's 16 KiB limit. Exceptionally long reports may omit the duplicate app card or use a short display explanation; the full spoken report is preserved.
+
+Successful APL reports leave the screen session available without reopening the microphone. Amazon describes an approximately 30-second idle window, but the device controls its duration. Ask again for an updated snapshot. This is a visual response to a voice request, not a continuously updating refrigerator dashboard or a pinned widget.
+
+If only speech appears, first confirm APL was saved and the model rebuilt for the exact skill you invoked. A built-in screen or an Alexa Media Player display classification does not expose the device's supported APL version. Inspect a request from the actual device; a simulator result alone cannot establish physical-device compatibility. The retired **Display Interface (Legacy)** is not used.
+
+See Amazon's [APL configuration guide](https://developer.amazon.com/en-US/docs/alexa/alexa-presentation-language/apl-support-for-your-skill.html), [capability detection](https://developer.amazon.com/en-US/docs/alexa/alexa-presentation-language/use-apl-with-ask-sdk.html), [screen session behavior](https://developer.amazon.com/en-US/docs/alexa/custom-skills/manage-skill-session-and-session-attributes.html#how-devices-with-screens-affect-the-skill-session), and [response cards](https://developer.amazon.com/en-US/docs/alexa/custom-skills/include-a-card-in-your-skills-response.html).
 
 ## Everyday voice commands
 

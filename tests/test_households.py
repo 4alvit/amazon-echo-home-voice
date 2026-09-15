@@ -159,9 +159,38 @@ class HouseholdSkillTests(StoreFixture):
                     value = self.linked(token)
                     value["request"]["intent"]["name"] = intent
                     result = lambda_handler.lambda_handler(value, None)
-                    self.assertNotIn("card", result["response"])
+                    self.assertEqual(result["response"]["card"]["type"], "Simple")
                     self.assertEqual(fetch.call_args.args[0], config)
                     self.assertNotIn("operator-secret", str(fetch.call_args))
+
+    def test_screen_reports_do_not_reuse_another_households_snapshot(self):
+        def identity(token):
+            return Identity("one" if token == "token-one" else "two", ISSUER, 9999999999)
+
+        def reports(config):
+            data = payload()
+            household = "first" if config == self.first else "second"
+            for report in data["reports"].values():
+                report["text"] = f"Synthetic {household} household report."
+            return data
+
+        with patch.object(accounts.OAuthClient, "introspect_alexa", side_effect=identity), \
+             patch.object(lambda_handler, "fetch_energy", side_effect=reports) as fetch:
+            for token, config, expected, other in (
+                ("token-one", self.first, "first", "second"),
+                ("token-two", self.second, "second", "first"),
+                ("token-one", self.first, "first", "second"),
+            ):
+                value = self.linked(token)
+                value["context"]["System"]["device"] = {
+                    "supportedInterfaces": {"Alexa.Presentation.APL": {}},
+                }
+                result = lambda_handler.lambda_handler(value, None)
+                text = result["response"]["directives"][0]["datasources"]["energy"]["reports"][0]["text"]
+                self.assertEqual(text, f"Synthetic {expected} household report.")
+                self.assertNotIn(f"Synthetic {other} household report.", str(result))
+                self.assertNotIn("operator-secret", str(result))
+                self.assertEqual(fetch.call_args.args[0], config)
 
     def test_missing_invalid_expired_revoked_tokens_never_use_operator_gateway(self):
         with patch.object(accounts.OAuthClient, "introspect_alexa", side_effect=InvalidToken("invalid")), \
@@ -180,7 +209,7 @@ class HouseholdSkillTests(StoreFixture):
              patch.object(lambda_handler, "fetch_energy") as fetch:
             result = lambda_handler.lambda_handler(self.linked(), None)
             self.assertIn("connect your gateway", result["response"]["outputSpeech"]["text"])
-            self.assertNotIn("card", result["response"])
+            self.assertEqual(result["response"]["card"]["type"], "Simple")
             fetch.assert_not_called()
 
     def test_provider_outage_and_storage_failure_are_safe_unavailability(self):
@@ -188,7 +217,7 @@ class HouseholdSkillTests(StoreFixture):
              patch.object(lambda_handler, "fetch_energy") as fetch:
             result = lambda_handler.lambda_handler(self.linked(), None)
             self.assertEqual(result["response"]["outputSpeech"]["text"], UNAVAILABLE_TEXT)
-            self.assertNotIn("card", result["response"])
+            self.assertEqual(result["response"]["card"]["type"], "Simple")
             fetch.assert_not_called()
         with patch.object(accounts.OAuthClient, "introspect_alexa", return_value=Identity("one", ISSUER, 9999999999)), \
              patch.dict(os.environ, {"TENANT_ENCRYPTION_KEY": "wrong"}), patch.object(lambda_handler, "fetch_energy") as fetch:

@@ -9,6 +9,7 @@ from .gateway import GatewayConfig, GatewayError, UNAVAILABLE_TEXT, fetch_energy
 from .accounts import mode, household_connection, request_timeout, UnlinkedAccount, UnconfiguredHome
 from .oauth import OAuthError
 from .tenant_store import StoreError
+from .visuals import message_visuals, report_visuals
 
 
 INTENTS = {
@@ -34,14 +35,18 @@ def _speech(text: str, *, end_session: bool = True) -> dict:
     return {"version": "1.0", "response": response}
 
 
-def _account_response(error):
+def _account_response(event, error):
     if isinstance(error, UnlinkedAccount):
         response = _speech("To hear your home energy reports, open the Alexa app and link your Home Energy account.")
         response["response"]["card"] = {"type": "LinkAccount"}
-        return response
+        return message_visuals(event, response, title="Link your account")
     if isinstance(error, UnconfiguredHome):
-        return _speech("Your account is linked. Sign in to the Home Energy connection portal and connect your gateway, then ask again.")
-    return _speech(UNAVAILABLE_TEXT)
+        return message_visuals(event, _speech("Your account is linked. Sign in to the Home Energy connection portal and connect your gateway, then ask again."), title="Connect your gateway")
+    return _unavailable(event)
+
+
+def _unavailable(event):
+    return message_visuals(event, _speech(UNAVAILABLE_TEXT), title="Energy status", status="Data unavailable")
 
 
 def validate_event(event: object) -> dict:
@@ -81,14 +86,14 @@ def lambda_handler(event, context, *, deadline=None):
         current_mode = mode()
         request_timeout(deadline, 1.0)
     except GatewayError:
-        return _speech(UNAVAILABLE_TEXT)
+        return _unavailable(event)
     if kind == "LaunchRequest":
         if current_mode == "multi_household":
             try:
                 household_connection(event, deadline=deadline)
             except (UnlinkedAccount, UnconfiguredHome, OAuthError, StoreError, GatewayError) as exc:
-                return _account_response(exc)
-        return _speech("Welcome to Home Energy. " + HELP_TEXT, end_session=False)
+                return _account_response(event, exc)
+        return message_visuals(event, _speech("Welcome to Home Energy. " + HELP_TEXT, end_session=False), title="Welcome")
     if kind != "IntentRequest":
         raise PermissionError("Unsupported Alexa request type")
     intent = request.get("intent")
@@ -98,10 +103,10 @@ def lambda_handler(event, context, *, deadline=None):
     if name in {"AMAZON.StopIntent", "AMAZON.CancelIntent"}:
         return _speech("Goodbye.")
     if name in {"AMAZON.HelpIntent", "AMAZON.FallbackIntent"}:
-        return _speech(HELP_TEXT, end_session=False)
+        return message_visuals(event, _speech(HELP_TEXT, end_session=False), title="What you can ask")
     if name not in INTENTS:
         # Never turn arbitrary intent names into gateway paths or write requests.
-        return _speech("I can only report home energy data. " + HELP_TEXT, end_session=False)
+        return message_visuals(event, _speech("I can only report home energy data. " + HELP_TEXT, end_session=False), title="What you can ask")
     try:
         config = household_connection(event, deadline=deadline) if current_mode == "multi_household" else GatewayConfig.from_env()
         if deadline is not None:
@@ -111,7 +116,7 @@ def lambda_handler(event, context, *, deadline=None):
         request_timeout(deadline, 1.0, reserve=0)
         text = payload["reports"][INTENTS[name]]["text"]
     except (UnlinkedAccount, UnconfiguredHome, OAuthError, StoreError) as exc:
-        return _account_response(exc)
+        return _account_response(event, exc)
     except GatewayError:
-        text = UNAVAILABLE_TEXT
-    return _speech(text)
+        return _unavailable(event)
+    return report_visuals(event, _speech(text), INTENTS[name], payload)

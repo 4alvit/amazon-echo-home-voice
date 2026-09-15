@@ -166,7 +166,7 @@ Successful APL reports leave the screen session available without reopening the 
 
 If only speech appears, first confirm APL was saved and the model rebuilt for the exact skill you invoked. A built-in screen or an Alexa Media Player display classification does not expose the device's supported APL version. Inspect a request from the actual device; a simulator result alone cannot establish physical-device compatibility. The retired **Display Interface (Legacy)** is not used.
 
-If Alexa+ answers with its own Energy Dashboard instead of opening the custom skill, explicitly say **Alexa, open the home energy skill**, then **battery status** or **energy status**. For the separate test invocation, say **Alexa, open the home energy test skill**. The simulator's Skill I/O must show an invocation of your skill; an answer from Amazon's built-in assistant does not test this backend.
+If Alexa+ answers with its own Energy Dashboard instead of opening the custom skill, explicitly say **Alexa, open the home energy skill**. Opening the skill immediately reads the energy overview and displays its four report cards on supported screens. For the separate test invocation, say **Alexa, open the home energy test skill**. The simulator's Skill I/O must show an invocation of your skill; an answer from Amazon's built-in assistant does not test this backend.
 
 See Amazon's [APL configuration guide](https://developer.amazon.com/en-US/docs/alexa/alexa-presentation-language/apl-support-for-your-skill.html), [capability detection](https://developer.amazon.com/en-US/docs/alexa/alexa-presentation-language/use-apl-with-ask-sdk.html), [screen session behavior](https://developer.amazon.com/en-US/docs/alexa/custom-skills/manage-skill-session-and-session-attributes.html#how-devices-with-screens-affect-the-skill-session), and [response cards](https://developer.amazon.com/en-US/docs/alexa/custom-skills/include-a-card-in-your-skills-response.html).
 
@@ -180,7 +180,9 @@ Use a complete request to start from outside the skill:
 - **Alexa, ask home energy for alarm status.**
 - **Alexa, ask home energy for system status.**
 
-To start a conversation, say **Alexa, open home energy skill**. After its welcome prompt, say **battery status**, **solar power**, **solar energy today**, **alarm status**, or **system status** without repeating the invocation. Say **help** for the available requests and **stop** or **cancel** to exit. Each energy report ends the session; use a complete request for the next report. Reports use the gateway's current English wording, including unavailable or stale-data explanations. See the [utterance catalog](docs/utterance-catalog.md) for additional supported phrases.
+For the default overview, say **Alexa, open the home energy skill**. No follow-up question is needed: opening the skill uses the same current IGW status report and screen cards as an explicit energy-status request. In multi-household mode, account linking and a connected gateway are still required; opening the skill cannot bypass either check.
+
+Use a complete request for a specific report or to refresh the overview. Say **Alexa, ask home energy for help** for available requests, or **stop** or **cancel** to exit. Help keeps the session open for a follow-up. Voice-only reports end the session; supported screens stay visible briefly as described above. Reports use the gateway's current English wording, including unavailable or stale-data explanations. See the [utterance catalog](docs/utterance-catalog.md) for additional supported phrases.
 
 ## Installation troubleshooting
 
@@ -256,7 +258,7 @@ Tests cover five intents, help/stop/lifecycle, application IDs, timestamps, unsu
 
 - Check CLI values against IGW and Cerbo GX.
 - Complete [Echo activation](#enable-the-skill-on-your-echo), then try all five [everyday voice commands](#everyday-voice-commands).
-- Verify conversation launch, help, stop, and an unsupported request. The explicit `open home energy skill` phrase was verified in the Alexa+ simulator; the invocation name remains **home energy**.
+- Verify that opening the skill immediately returns the status report, plus help, stop, and an unsupported request. Use the explicit `open the home energy skill` phrase for Alexa+; the invocation name remains **home energy**.
 - In a test environment, exercise stale/disconnected/unconfigured readings and gateway failure. Do not interrupt live control equipment to test speech.
 
 Simulator and automated test success do not prove physical microphone recognition or playback. Before public distribution, deploy multi-household mode and complete the [account-linking acceptance checks](docs/account-linking.md#acceptance-before-public-release), including real Amazon linking, refresh, and tests on two authorized Echo accounts.

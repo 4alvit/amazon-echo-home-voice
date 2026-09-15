@@ -88,18 +88,15 @@ def lambda_handler(event, context, *, deadline=None):
     except GatewayError:
         return _unavailable(event)
     if kind == "LaunchRequest":
-        if current_mode == "multi_household":
-            try:
-                household_connection(event, deadline=deadline)
-            except (UnlinkedAccount, UnconfiguredHome, OAuthError, StoreError, GatewayError) as exc:
-                return _account_response(event, exc)
-        return message_visuals(event, _speech("Welcome to Home Energy. " + HELP_TEXT, end_session=False), title="Welcome")
-    if kind != "IntentRequest":
+        # Opening the skill is a request for the same overview as StatusIntent.
+        name = "StatusIntent"
+    elif kind == "IntentRequest":
+        intent = request.get("intent")
+        if not isinstance(intent, dict) or not isinstance(intent.get("name"), str):
+            raise PermissionError("Invalid Alexa intent")
+        name = intent["name"]
+    else:
         raise PermissionError("Unsupported Alexa request type")
-    intent = request.get("intent")
-    if not isinstance(intent, dict) or not isinstance(intent.get("name"), str):
-        raise PermissionError("Invalid Alexa intent")
-    name = intent["name"]
     if name in {"AMAZON.StopIntent", "AMAZON.CancelIntent"}:
         return _speech("Goodbye.")
     if name in {"AMAZON.HelpIntent", "AMAZON.FallbackIntent"}:

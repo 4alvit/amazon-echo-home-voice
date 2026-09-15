@@ -116,8 +116,8 @@ class VisualSkillTests(unittest.TestCase):
         self.assertEqual(screen_data(first)["reports"][0]["text"], "Central battery report.")
 
     @patch.object(lambda_handler, "fetch_energy")
-    def test_welcome_help_and_stop_have_appropriate_session_behavior(self, fetch):
-        for value in (screen_event(kind="LaunchRequest"), screen_event("AMAZON.HelpIntent"),
+    def test_help_and_stop_have_appropriate_session_behavior(self, fetch):
+        for value in (screen_event("AMAZON.HelpIntent"),
                       screen_event("AMAZON.FallbackIntent"), screen_event("SetModeIntent")):
             response = lambda_handler.lambda_handler(value, None)
             self.assertIn("directives", response["response"])
@@ -130,6 +130,19 @@ class VisualSkillTests(unittest.TestCase):
             })
         self.assertEqual(lambda_handler.lambda_handler(screen_event(kind="SessionEndedRequest"), None)["response"], {})
         fetch.assert_not_called()
+
+    @patch.object(lambda_handler, "fetch_energy", side_effect=lambda _: payload())
+    def test_launch_renders_the_complete_status_screen_from_one_snapshot(self, fetch):
+        value = screen_event(kind="LaunchRequest")
+        del value["request"]["intent"]
+        response = lambda_handler.lambda_handler(value, None)
+        fetch.assert_called_once()
+        self.assertEqual(response["response"]["outputSpeech"]["text"], "Central status report.")
+        self.assertEqual(screen_data(response)["title"], "Energy status")
+        self.assertEqual([row["text"] for row in screen_data(response)["reports"]],
+                         [f"Central {name} report." for name in ("battery", "solar", "solar_today", "alarms")])
+        self.assertNotIn("shouldEndSession", response["response"])
+        self.assertNotIn("reprompt", response["response"])
 
     @patch.object(lambda_handler, "fetch_energy")
     def test_unlinked_screen_retains_link_account_card_and_cannot_show_reports(self, fetch):

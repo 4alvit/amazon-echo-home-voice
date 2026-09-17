@@ -10,6 +10,7 @@ from .accounts import mode, household_connection, request_timeout, UnlinkedAccou
 from .oauth import OAuthError
 from .tenant_store import StoreError
 from .visuals import message_visuals, report_visuals
+from .diagnostics import gateway_failure, report_statuses
 
 
 INTENTS = {
@@ -85,7 +86,8 @@ def lambda_handler(event, context, *, deadline=None):
     try:
         current_mode = mode()
         request_timeout(deadline, 1.0)
-    except GatewayError:
+    except GatewayError as exc:
+        gateway_failure(exc)
         return _unavailable(event)
     if kind == "LaunchRequest":
         # Opening the skill is a request for the same overview as StatusIntent.
@@ -114,6 +116,8 @@ def lambda_handler(event, context, *, deadline=None):
         text = payload["reports"][INTENTS[name]]["text"]
     except (UnlinkedAccount, UnconfiguredHome, OAuthError, StoreError) as exc:
         return _account_response(event, exc)
-    except GatewayError:
+    except GatewayError as exc:
+        gateway_failure(exc)
         return _unavailable(event)
+    report_statuses(payload)
     return report_visuals(event, _speech(text), INTENTS[name], payload)

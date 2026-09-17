@@ -192,6 +192,10 @@ Use a complete request for a specific report or to refresh the overview. Say **A
 - **The skill says energy data is unavailable:** run the local `energy-voice status` check and inspect gateway reachability, the read token, report freshness, and optional outbound Access credentials. Keep logs and real configuration private.
 - **Simulator works but the Echo does not:** verify app enablement, account registration, device language, microphone, and volume. Simulator success does not establish physical recognition or playback.
 
+For an overview request, one generic **Energy status / Data unavailable** card means the adapter could not obtain an acceptable response. Four individual battery, solar, daily-energy, and alarm cards mean the IGW response was accepted; each card preserves that report's upstream freshness status and explanation. A stale or unavailable report must not be replaced with zero.
+
+Backend logs include bounded `energy_voice_diagnostic` records when a gateway request fails or accepted reports are not fresh. `gateway_failure` records contain a fixed `category`, an allowlisted `cause`, and a valid `http_status` when supplied by the HTTP exception. Categories distinguish configuration, deadline, network policy, resolver, transport, response format, envelope age, and report contract failures; unfamiliar errors use `unknown`. `upstream_report_status` records contain only the five report statuses and the `mqtt_connected` boolean. Fresh responses stay quiet. These records omit exception text, URLs, account or request identifiers, credentials, response bodies, report text, and metric values. They help diagnose later failures; a successful check now cannot explain an earlier failure that was not logged.
+
 ## Cloudflare deployment: Plan A and Plan B
 
 Both plans keep Amazon signature, timestamp, and skill-ID verification in the backend. Neither gives Alexa direct access to IGW credentials or control commands. The backend still makes its authenticated read-only request to IGW; Home Assistant is not involved.

@@ -194,6 +194,18 @@ Create a personal Alexa Routine to launch the same overview with **Alexa, energy
 
 This shortcut belongs to your Alexa account and is not installed by deploying the repository. It launches the existing skill without changing its model, backend, or account-linking requirements. Amazon documents [launching custom skills from routines](https://developer.amazon.com/en-US/blogs/alexa/post/cf65c68e-f3df-475e-939d-4ea2771b20b7/tell-your-customers-they-can-now-invoke-your-skill-from-routine); no custom-task implementation is needed for this opening action.
 
+If Alexa+ offers routine creation in its web chat, you can instead request:
+
+> Create a routine named Energy with the voice trigger 'energy' and one custom Alexa action: 'open the home energy skill'. Run it on the device I speak to.
+
+Check the saved routine in the Alexa app afterward: its trigger, exact action,
+output device and enabled state must match the intended setup. A chat reply
+saying the routine was created, or repeating only its trigger, does not verify
+those settings or prove physical voice playback. If web creation is unavailable
+or its confirmation is incomplete, use the app steps above to inspect or finish
+the routine. Test **Alexa, energy** on the intended device before considering
+the shortcut ready; account linking and a connected IGW are still required.
+
 Use a complete request for a specific report or to refresh the overview. Say **Alexa, ask home energy for help** for available requests, or **stop** or **cancel** to exit. Help keeps the session open for a follow-up. Voice-only reports end the session; supported screens stay visible briefly as described above. Reports use the gateway's current English wording, including unavailable or stale-data explanations. See the [utterance catalog](docs/utterance-catalog.md) for additional supported phrases.
 
 ## Installation troubleshooting

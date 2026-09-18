@@ -18,3 +18,8 @@ After a help prompt, omit the invocation name for the next request. Opening the 
 For **Alexa, energy**, create an enabled routine with the **Voice** trigger `energy` and one **Custom** action, `open the home energy skill`. Enter both without the wake word. Choose **The device you speak to** for output when offered. If Custom is unavailable, choose **Skills → Your Skills → Home Energy** and its opening action when listed; development skills are not guaranteed to appear in every app or account. See the [setup and device-verification steps](../README.md#optional-short-command-alexa-energy).
 
 The routine must be configured in each Alexa account that needs the shortcut. The default invocation stays **home energy**, and all existing authentication and gateway requirements still apply. A generic one-word invocation does not meet Amazon's [naming requirements](https://developer.amazon.com/en-US/docs/alexa/interaction-model-design/design-the-invocation-name-for-your-skill.html); Amazon separately supports [opening custom skills from personal routines](https://developer.amazon.com/en-US/blogs/alexa/post/cf65c68e-f3df-475e-939d-4ea2771b20b7/tell-your-customers-they-can-now-invoke-your-skill-from-routine).
+
+Where Alexa+ web chat offers routine creation, the README includes the exact
+request. Verify the saved action, output device and enabled state in the Alexa
+app, then test the phrase physically. A creation acknowledgment or trigger-only
+chat response is not end-to-end verification.

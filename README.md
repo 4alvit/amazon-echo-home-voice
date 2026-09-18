@@ -16,6 +16,10 @@ For one home, start with [creating the skill and installing its backend](#self-h
 See [CI and deployment workflow](docs/release-workflow.md) for required checks and local commands. This repository uses validation-only policy; application release channels do not apply.
 <!-- ci-release-process:end -->
 
+Manual GitHub source releases identify validated `main` commits for self-hosted
+installation. Their tags match the Python package version. Deployment, Amazon
+certification and store publication remain separate steps.
+
 ## Included and still required
 
 The repository includes an English (US) interaction model with invocation name **home energy**, a Python Lambda handler, a signature-verified self-hosted HTTPS webhook, a dependency-free smoke CLI, automated security and isolation tests, Docker Compose, and an optional personal-mode AWS SAM template. Multi-household mode adds OAuth account linking, a household connection portal, encrypted persistent storage, and a self-hosted Keycloak deployment example.

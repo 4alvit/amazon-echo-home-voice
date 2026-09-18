@@ -16,6 +16,10 @@ For one home, start with [creating the skill and installing its backend](#self-h
 See [CI and deployment workflow](docs/release-workflow.md) for required checks and local commands. This repository uses validation-only policy; application release channels do not apply.
 <!-- ci-release-process:end -->
 
+Manual GitHub source releases identify validated `main` commits for self-hosted
+installation. Their tags match the Python package version. Deployment, Amazon
+certification and store publication remain separate steps.
+
 ## Included and still required
 
 The repository includes an English (US) interaction model with invocation name **home energy**, a Python Lambda handler, a signature-verified self-hosted HTTPS webhook, a dependency-free smoke CLI, automated security and isolation tests, Docker Compose, and an optional personal-mode AWS SAM template. Multi-household mode adds OAuth account linking, a household connection portal, encrypted persistent storage, and a self-hosted Keycloak deployment example.
@@ -181,6 +185,36 @@ Use a complete request to start from outside the skill:
 - **Alexa, ask home energy for system status.**
 
 For the default overview, say **Alexa, open the home energy skill**. No follow-up question is needed: opening the skill uses the same current IGW status report and screen cards as an explicit energy-status request. In multi-household mode, account linking and a connected gateway are still required; opening the skill cannot bypass either check.
+
+### Optional short command: “Alexa, energy”
+
+Create a personal Alexa Routine to launch the same overview with **Alexa, energy**. The skill's invocation name remains **home energy**: Amazon's [invocation-name requirements](https://developer.amazon.com/en-US/docs/alexa/interaction-model-design/design-the-invocation-name-for-your-skill.html) do not permit a generic one-word invocation such as `energy`.
+
+1. In the Alexa app, open **More → Routines**, add a routine, and name it **Energy**.
+2. Add a **Voice** trigger with the phrase `energy`, without the wake word.
+3. Add one **Custom** action: `open the home energy skill`, again without the wake word. If Custom is unavailable, use **Skills → Your Skills → Home Energy** and its opening action when offered. Development-skill availability in this list can vary; use the direct invocation if neither option is available.
+4. Select **The device you speak to** for the response device when offered, or choose the intended device explicitly. Save and enable the routine.
+5. Say **Alexa, energy** on that device. Confirm that Home Energy reports the current energy overview and, on an APL-capable display, shows its cards. Merely saving the routine does not establish successful skill invocation or physical-device rendering.
+
+This shortcut belongs to your Alexa account and is not installed by deploying the repository. It launches the existing skill without changing its model, backend, or account-linking requirements. Amazon documents [launching custom skills from routines](https://developer.amazon.com/en-US/blogs/alexa/post/cf65c68e-f3df-475e-939d-4ea2771b20b7/tell-your-customers-they-can-now-invoke-your-skill-from-routine); no custom-task implementation is needed for this opening action.
+
+If Alexa+ offers routine creation in its web chat, you can instead request:
+
+> Create a routine named Energy with the voice trigger 'energy' and one custom Alexa action: 'open the home energy skill'. Run it on the device I speak to.
+
+Check the saved routine in the Alexa app afterward: its trigger, exact action,
+output device and enabled state must match the intended setup. A chat reply
+saying the routine was created, or repeating only its trigger, does not verify
+those settings or prove physical voice playback. If web creation is unavailable
+or its confirmation is incomplete, use the app steps above to inspect or finish
+the routine. Test **Alexa, energy** on the intended device before considering
+the shortcut ready; account linking and a connected IGW are still required.
+
+The operator of one installation has confirmed that **Alexa, energy** works on
+a physical device. This is user-reported acceptance of that shortcut, beyond
+the earlier web-chat acknowledgment. Each new account and device setup still
+needs its own check; this result does not establish public-store certification
+or access for other households.
 
 Use a complete request for a specific report or to refresh the overview. Say **Alexa, ask home energy for help** for available requests, or **stop** or **cancel** to exit. Help keeps the session open for a follow-up. Voice-only reports end the session; supported screens stay visible briefly as described above. Reports use the gateway's current English wording, including unavailable or stale-data explanations. See the [utterance catalog](docs/utterance-catalog.md) for additional supported phrases.
 

@@ -182,6 +182,18 @@ Use a complete request to start from outside the skill:
 
 For the default overview, say **Alexa, open the home energy skill**. No follow-up question is needed: opening the skill uses the same current IGW status report and screen cards as an explicit energy-status request. In multi-household mode, account linking and a connected gateway are still required; opening the skill cannot bypass either check.
 
+### Optional short command: “Alexa, energy”
+
+Create a personal Alexa Routine to launch the same overview with **Alexa, energy**. The skill's invocation name remains **home energy**: Amazon's [invocation-name requirements](https://developer.amazon.com/en-US/docs/alexa/interaction-model-design/design-the-invocation-name-for-your-skill.html) do not permit a generic one-word invocation such as `energy`.
+
+1. In the Alexa app, open **More → Routines**, add a routine, and name it **Energy**.
+2. Add a **Voice** trigger with the phrase `energy`, without the wake word.
+3. Add one **Custom** action: `open the home energy skill`, again without the wake word. If Custom is unavailable, use **Skills → Your Skills → Home Energy** and its opening action when offered. Development-skill availability in this list can vary; use the direct invocation if neither option is available.
+4. Select **The device you speak to** for the response device when offered, or choose the intended device explicitly. Save and enable the routine.
+5. Say **Alexa, energy** on that device. Confirm that Home Energy reports the current energy overview and, on an APL-capable display, shows its cards. Merely saving the routine does not establish successful skill invocation or physical-device rendering.
+
+This shortcut belongs to your Alexa account and is not installed by deploying the repository. It launches the existing skill without changing its model, backend, or account-linking requirements. Amazon documents [launching custom skills from routines](https://developer.amazon.com/en-US/blogs/alexa/alexa-skills-kit/2019/10/tell-your-customers-they-can-now-invoke-your-skill-from-routines); no custom-task implementation is needed for this opening action.
+
 Use a complete request for a specific report or to refresh the overview. Say **Alexa, ask home energy for help** for available requests, or **stop** or **cancel** to exit. Help keeps the session open for a follow-up. Voice-only reports end the session; supported screens stay visible briefly as described above. Reports use the gateway's current English wording, including unavailable or stale-data explanations. See the [utterance catalog](docs/utterance-catalog.md) for additional supported phrases.
 
 ## Installation troubleshooting

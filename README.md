@@ -206,6 +206,12 @@ or its confirmation is incomplete, use the app steps above to inspect or finish
 the routine. Test **Alexa, energy** on the intended device before considering
 the shortcut ready; account linking and a connected IGW are still required.
 
+The operator of one installation has confirmed that **Alexa, energy** works on
+a physical device. This is user-reported acceptance of that shortcut, beyond
+the earlier web-chat acknowledgment. Each new account and device setup still
+needs its own check; this result does not establish public-store certification
+or access for other households.
+
 Use a complete request for a specific report or to refresh the overview. Say **Alexa, ask home energy for help** for available requests, or **stop** or **cancel** to exit. Help keeps the session open for a follow-up. Voice-only reports end the session; supported screens stay visible briefly as described above. Reports use the gateway's current English wording, including unavailable or stale-data explanations. See the [utterance catalog](docs/utterance-catalog.md) for additional supported phrases.
 
 ## Installation troubleshooting

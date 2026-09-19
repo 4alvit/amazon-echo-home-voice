@@ -113,7 +113,12 @@ IGW must implement `GET /v1/energy` with a dedicated read-scoped token. Do not r
 }
 ```
 
-These are illustrative values; IGW supplies actual metric structures and current Unix `generated_at`. The adapter validates required metric names but does not consume metric internals. It validates all report statuses/text. Accepted statuses are `fresh`, `stale`, `unavailable`, and `unconfigured`. IGW also supplies non-fresh explanations so both voice platforms explain the same condition.
+These are illustrative values; IGW supplies actual metric structures and current Unix `generated_at`.
+The minimum contract requires the three metric names; their internal fields remain optional.
+The adapter validates optional numeric values, units, statuses and receipt ages before using them for screen cards.
+Missing or invalid optional metrics retain central report text, and non-fresh metrics never display numeric readings.
+Required report statuses and text are validated. Accepted statuses are `fresh`, `stale`, `unavailable`, and `unconfigured`.
+IGW also supplies non-fresh explanations so both voice platforms explain the same condition.
 
 ## Local installation and smoke check
 

@@ -23,7 +23,7 @@ def payload():
         "metrics": {"battery_soc": {}, "solar_power": {}, "solar_today": {}},
         "reports": {
             name: {"status": "fresh", "text": f"Central {name} report."}
-            for name in gateway.REPORT_NAMES
+            for name in (*gateway.REPORT_NAMES, "flow")
         },
     }
 

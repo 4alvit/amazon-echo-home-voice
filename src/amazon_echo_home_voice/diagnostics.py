@@ -27,7 +27,7 @@ FAILURE_CATEGORIES = {
     "deadline": ("Voice request timed out", "Gateway request timed out"),
     "network_policy": ("Gateway must resolve only to public Internet addresses",),
     "resolver": ("Gateway resolver is busy", "Gateway resolver is unavailable", "Gateway resolution failed"),
-    "transport": ("Gateway request failed", "Invalid gateway transport"),
+    "transport": ("Gateway request failed", "Invalid gateway transport", "Gateway transport is busy"),
     "response_format": ("Gateway returned an invalid content type", "Gateway response is too large", "Invalid gateway response"),
     "envelope_age": ("Gateway response is out of date",),
     "report_contract": (
@@ -63,7 +63,8 @@ def gateway_failure(error: Exception) -> None:
 def report_statuses(payload: dict) -> None:
     """Record accepted non-fresh states; successful fresh reports stay quiet."""
     statuses = {}
-    for name in REPORT_NAMES:
+    names = REPORT_NAMES + (("flow",) if "flow" in payload["reports"] else ())
+    for name in names:
         value = payload["reports"][name]["status"]
         statuses[name] = value if type(value) is str and value in STATUSES else "unknown"
     if all(status == "fresh" for status in statuses.values()):

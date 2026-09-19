@@ -1,6 +1,6 @@
 """Bounded, authenticated HTTPS access to centrally formatted energy reports."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from http.client import HTTPException, HTTPSConnection
 import io
 import ipaddress
@@ -25,11 +25,28 @@ MAX_RESPONSE_BYTES = 32768
 # Includes HTTP headers and chunk framing, in addition to the JSON body limit.
 MAX_PUBLIC_WIRE_BYTES = MAX_RESPONSE_BYTES + 16384
 MAX_TEXT_LENGTH = 1200
+# Safety caveats and active alarms can make the concise report as long as details.
+MAX_BRIEF_TEXT_LENGTH = MAX_TEXT_LENGTH
 UNAVAILABLE_TEXT = "Home energy data is unavailable right now. Please try again later."
 
 
 class GatewayError(Exception):
     """A safe error category; never includes tokens, URLs, or remote bodies."""
+
+
+class TransientGatewayError(GatewayError):
+    """A classified, retryable failure of the read-only gateway transport."""
+
+
+TRANSIENT_HTTP_STATUSES = frozenset({502, 503, 504})
+
+
+def _valid_text(value, maximum=MAX_TEXT_LENGTH):
+    return (
+        isinstance(value, str) and bool(value.strip()) and len(value) <= maximum
+        and not any(unicodedata.category(char).startswith("C") for char in value)
+        and "<" not in value and ">" not in value
+    )
 
 
 def _header_value(value: str, name: str, required: bool = False) -> str:
@@ -107,6 +124,7 @@ class NoRedirects(HTTPRedirectHandler):
 # The system resolver has no portable timeout. Limit outstanding daemon lookups;
 # a stalled resolver must neither exhaust threads nor hold an Alexa request open.
 _DNS_SLOTS = threading.BoundedSemaphore(8)
+_PERSONAL_REQUEST_SLOTS = threading.BoundedSemaphore(8)
 _IPV6_UNICAST = ipaddress.ip_network("2000::/3")
 _SPECIAL_NETWORKS = tuple(map(ipaddress.ip_network, (
     "192.0.0.0/24", "192.88.99.0/24", "2001::/23", "2002::/16", "3fff::/20",
@@ -303,9 +321,51 @@ def _public_body(config: GatewayConfig, headers: dict) -> bytes:
         connection.close()
 
 
+def _personal_body(config: GatewayConfig, headers: dict, opener) -> bytes:
+    """Bound DNS and slow bodies without unbounded abandoned transport workers."""
+    deadline = time.monotonic() + config.timeout_seconds
+    slots = _PERSONAL_REQUEST_SLOTS
+    if not slots.acquire(blocking=False):
+        raise GatewayError("Gateway transport is busy")
+    result = queue.Queue(maxsize=1)
+
+    def run():
+        try:
+            request = Request(config.url, headers=headers, method="GET")
+            # Do not inherit proxy settings for authenticated traffic.
+            transport = opener or build_opener(ProxyHandler({}), NoRedirects())
+            with transport.open(request, timeout=config.timeout_seconds) as response:
+                body = _response_body(response)
+            result.put((True, body))
+        except (GatewayError, URLError, OSError, HTTPException) as exc:
+            if isinstance(exc, HTTPError):
+                # The caller may already have timed out and never consume this error.
+                exc.close()
+            result.put((False, exc))
+        except Exception:
+            result.put((False, GatewayError("Gateway request failed")))
+        finally:
+            slots.release()
+
+    try:
+        threading.Thread(target=run, daemon=True, name="gateway-personal").start()
+    except RuntimeError:
+        slots.release()
+        raise GatewayError("Gateway transport is busy") from None
+    try:
+        success, value = result.get(timeout=_remaining(deadline))
+    except queue.Empty:
+        raise GatewayError("Gateway request timed out") from None
+    _remaining(deadline)
+    if not success:
+        raise value
+    return value
+
+
 def _response_body(response) -> bytes:
     if response.status != 200:
-        raise GatewayError("Gateway request failed")
+        error = TransientGatewayError if response.status in TRANSIENT_HTTP_STATUSES else GatewayError
+        raise error("Gateway request failed")
     content_type = response.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
     if content_type != "application/json":
         raise GatewayError("Gateway returned an invalid content type")
@@ -346,7 +406,8 @@ def validate_payload(payload: object, *, now: float, max_age_seconds: float) -> 
     reports = payload.get("reports")
     if not isinstance(reports, dict):
         raise GatewayError("Invalid gateway reports")
-    for name in REPORT_NAMES:
+    names = REPORT_NAMES + (("flow",) if "flow" in reports else ())
+    for name in names:
         report = reports.get(name)
         if not isinstance(report, dict):
             raise GatewayError("Invalid gateway report")
@@ -356,20 +417,34 @@ def validate_payload(payload: object, *, now: float, max_age_seconds: float) -> 
         if status == "fresh" and not payload["mqtt_connected"]:
             raise GatewayError("Inconsistent gateway report status")
         text = report.get("text")
-        if (
-            not isinstance(text, str)
-            or not text.strip()
-            or len(text) > MAX_TEXT_LENGTH
-            or any(unicodedata.category(char).startswith("C") for char in text)
-            or "<" in text
-            or ">" in text
-        ):
+        if not _valid_text(text):
             raise GatewayError("Invalid gateway report text")
+    brief = reports["status"].get("brief_text")
+    if "brief_text" in reports["status"] and not _valid_text(brief, MAX_BRIEF_TEXT_LENGTH):
+        # The full report has already passed validation. An optional enhancement
+        # must not discard its warnings or make an older integration unavailable.
+        status_report = {key: value for key, value in reports["status"].items() if key != "brief_text"}
+        return payload | {"reports": reports | {"status": status_report}}
     return payload
 
 
 def fetch_energy(config: GatewayConfig, *, opener=None, now=None) -> dict:
-    """One GET, no retries or redirects; the caller can fit Alexa's response budget."""
+    """At most two GETs within one timeout; never retry auth, schema, or TLS errors."""
+    deadline = time.monotonic() + config.timeout_seconds
+    try:
+        result = _fetch_once(config, opener=opener, now=now)
+    except TransientGatewayError:
+        remaining = deadline - time.monotonic()
+        if remaining < 0.1:
+            raise
+        result = _fetch_once(replace(config, timeout_seconds=min(config.timeout_seconds, remaining)),
+                             opener=opener, now=now)
+    _remaining(deadline)
+    return result
+
+
+def _fetch_once(config: GatewayConfig, *, opener=None, now=None) -> dict:
+    """Perform one bounded GET through the same redirect and network safeguards."""
     headers = {
         "Authorization": f"Bearer {config.read_token}",
         "Accept": "application/json",
@@ -386,11 +461,7 @@ def fetch_energy(config: GatewayConfig, *, opener=None, now=None) -> dict:
                 raise GatewayError("Public gateways require the pinned HTTPS transport")
             body = _public_body(config, headers)
         else:
-            request = Request(config.url, headers=headers, method="GET")
-            # Avoid inheriting proxy configuration that could redirect authenticated traffic.
-            opener = opener or build_opener(ProxyHandler({}), NoRedirects())
-            with opener.open(request, timeout=config.timeout_seconds) as response:
-                body = _response_body(response)
+            body = _personal_body(config, headers, opener)
         payload = json.loads(body.decode("utf-8"), object_pairs_hook=_unique_object)
         return validate_payload(
             payload,
@@ -399,8 +470,11 @@ def fetch_energy(config: GatewayConfig, *, opener=None, now=None) -> dict:
         )
     except HTTPError as exc:
         exc.close()
-        raise GatewayError("Gateway request failed") from exc
+        error = TransientGatewayError if exc.code in TRANSIENT_HTTP_STATUSES else GatewayError
+        raise error("Gateway request failed") from exc
     except (URLError, OSError, TimeoutError, HTTPException) as exc:
-        raise GatewayError("Gateway request failed") from exc
+        reason = exc.reason if isinstance(exc, URLError) else exc
+        error = TransientGatewayError if isinstance(reason, (TimeoutError, ConnectionError)) else GatewayError
+        raise error("Gateway request failed") from exc
     except (UnicodeError, ValueError, RecursionError) as exc:
         raise GatewayError("Invalid gateway response") from exc

@@ -2,16 +2,21 @@
 
 Invocation name: **home energy**. Include it when starting a direct custom-skill request. An optional personal Alexa Routine can provide the shorter overview command **Alexa, energy** without renaming the skill.
 
-- **Alexa, open the home energy skill** — immediately reads IGW `reports.status` and displays the energy overview on supported screens. No follow-up request is needed; the invocation name remains **home energy**.
+- **Alexa, open the home energy skill** — immediately reads IGW `reports.status.brief_text` when available, otherwise `reports.status.text`, and displays the energy overview on supported screens. No follow-up request is needed; the invocation name remains **home energy**.
 - **Alexa, ask home energy what is the battery charge** — `BatteryIntent`, IGW `reports.battery`.
 - **Alexa, ask home energy what is the solar power** — `SolarIntent`, IGW `reports.solar`.
 - **Alexa, ask home energy how much solar energy did we produce today** — `SolarTodayIntent`, IGW `reports.solar_today`.
 - **Alexa, ask home energy are there any alarms** — `AlarmStatusIntent`, IGW `reports.alarms`.
 - **Alexa, ask home energy what is the energy status** — `StatusIntent`, IGW `reports.status`.
+- **Alexa, ask home energy what is the power flow** — `EnergyFlowIntent`, optional IGW `reports.flow`. Questions about house consumption, importing or exporting, and battery charging request this same central report. Without configured flow sources, the skill explains how to enable them.
+- **Details** or **give me more details** — `DetailsIntent`, full central text for the current report, or full status without session context.
+- **Repeat** or **refresh the report** — requests the current report again with new data and authorization; no stored readings are replayed.
 - **Help** — describes these requests and keeps the session open.
 - **Stop** or **cancel** — ends the session.
 
 After a help prompt, omit the invocation name for the next request. Opening the skill already returns the status report; use a complete request to start another report after the session ends. Exact training phrases are in `skill-package/interactionModels/custom/en-US.json`. Requests to control devices cannot cause writes.
+
+On APL screens, **Refresh**, **Battery**, **Today** and **Details** provide the same read-only reports through touch. Short answers do not automatically reopen the microphone. See [concise reports and interactive screens](voice-experience.md) for session behavior, metrics, source-age labels, compatibility and interaction-model deployment.
 
 ## Optional personal shortcut
 

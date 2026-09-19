@@ -2,11 +2,43 @@
 
 A read-only **Alexa custom skill** for battery charge, current solar power, solar energy today, alarms, and system status. It reads centrally formatted English reports from `inverter-gateway` (IGW). Home Assistant is not required.
 
-```text
-Cerbo GX / Venus OS → IGW /v1/energy → this adapter → Alexa → Echo
+```mermaid
+flowchart LR
+  Cerbo["Cerbo GX / Venus OS"] -->|"MQTT telemetry"| IGW["IGW on server or NAS"]
+  IGW -->|"Read-only /v1/energy"| Backend["Home Energy backend"]
+  Alexa["Amazon signed request"] --> Backend
+  Backend -->|"Brief speech and APL cards"| Device["Alexa speaker or screen"]
 ```
 
-IGW owns device selection, units, aggregation, freshness, and wording. For each report, the adapter makes one authenticated IGW GET and copies `reports.<name>.text` into an Alexa `PlainText` response. It has no MQTT credentials, calculations, or write commands. This repository replaces earlier Home Assistant YAML examples.
+IGW owns device selection, units, aggregation, freshness, and wording. Each request
+reads an authenticated IGW snapshot within a bounded deadline. Default status
+speech uses the gateway's optional `brief_text`; detailed reports and older
+gateways use `text`. Validated optional metrics provide numeric screen cards.
+The adapter has no MQTT credentials, energy calculations, or write commands.
+This repository replaces earlier Home Assistant YAML examples.
+
+See [architecture.md](architecture.md) for source ownership, trust boundaries,
+personal and multi-household authorization, screen events, failure handling and
+upgrade order.
+
+## Voice and screen experience
+
+- Opening the skill gives the short central overview; **details** requests its
+  full wording. Active alarms and data-quality notices remain part of the report.
+- Supported screens show large battery, solar and daily-generation values with
+  units and gateway receipt age. Missing or non-fresh metrics keep explicit
+  explanations, and older text-only responses remain supported.
+- **Refresh**, **Battery**, **Today** and **Details** screen controls use the same
+  household authorization and current IGW read as voice requests. Repeat does
+  not replay cached telemetry. Screen sessions do not automatically reopen the mic.
+- Optional **power flow** reports describe configured AC consumption, grid
+  import/export and battery charging/discharging after sources are configured in IGW.
+- A single classified transient read retry stays within the request's overall
+  deadline. Old successful readings are never silently substituted for current data.
+
+See [voice experience setup and verification](docs/voice-experience.md). Deploy
+the new backend, import and rebuild the updated interaction model, and test on
+the intended physical device; source installation alone does not update Amazon.
 
 For one home, start with [creating the skill and installing its backend](#self-hosted-webhook-no-aws-account-needed), then [enable it on your Echo](#enable-the-skill-on-your-echo). For a shared skill serving separate homes, use [account linking and household setup](#multiple-households-and-account-linking). Both modes use the same [voice commands](#everyday-voice-commands). This repository does not have a published Home Energy store listing; development, certification, and store distribution remain separate steps.
 
@@ -38,10 +70,17 @@ The default `ENERGY_VOICE_MODE=personal` uses one operator-managed gateway. Keep
 
 Set up the [multi-household stack and account linking](docs/account-linking.md) before inviting separate households. The complete [deployment example](deploy/multi-household/README.md) includes a production-mode Keycloak identity provider, PostgreSQL, the Alexa webhook, and a separate connection portal. It runs on your own server; it does not require a paid identity service or a Cloudflare upgrade. Cerbo GX continues to supply telemetry only.
 
-```text
-Homeowner → connection portal → Keycloak sign-in → encrypted household connection
-Alexa app → Keycloak account linking → scoped account token
-Signed Alexa request → validate account token → that household's IGW → speech
+```mermaid
+flowchart LR
+  Owner["Homeowner"] --> Portal["Connection portal"]
+  Portal --> Identity["Keycloak sign-in"]
+  Portal --> Store["Encrypted per-household IGW connection"]
+  App["Alexa app"] -->|"Account linking"| Identity
+  Identity -->|"Scoped account token"| Request["Signed Alexa request"]
+  Request --> Validate["Validate token, client and subject"]
+  Validate --> Store
+  Store -->|"Only this home's read credentials"| IGW["Selected IGW"]
+  IGW --> Reports["Speech and optional screen response"]
 ```
 
 Each identity-provider account owns one home's IGW connection. Different homes use different accounts and read tokens. The portal and Alexa clients share the same issuer and stable subject identifiers. This version does not select between multiple homes in one account or use individual Alexa voice profiles; anyone able to use the linked Amazon account's Echo may hear that home's reports.
@@ -183,6 +222,8 @@ Use a complete request to start from outside the skill:
 - **Alexa, ask home energy for solar energy today.**
 - **Alexa, ask home energy for alarm status.**
 - **Alexa, ask home energy for system status.**
+- **Alexa, ask home energy for details.**
+- **Alexa, ask home energy for power flow.** — optional, requires IGW flow sources.
 
 For the default overview, say **Alexa, open the home energy skill**. No follow-up question is needed: opening the skill uses the same current IGW status report and screen cards as an explicit energy-status request. In multi-household mode, account linking and a connected gateway are still required; opening the skill cannot bypass either check.
 

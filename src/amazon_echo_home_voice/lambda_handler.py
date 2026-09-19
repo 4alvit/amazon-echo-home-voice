@@ -9,7 +9,7 @@ from .gateway import GatewayConfig, GatewayError, UNAVAILABLE_TEXT, fetch_energy
 from .accounts import mode, household_connection, request_timeout, UnlinkedAccount, UnconfiguredHome
 from .oauth import OAuthError
 from .tenant_store import StoreError
-from .visuals import message_visuals, report_visuals
+from .visuals import message_visuals, report_visuals, user_event_selection
 from .diagnostics import gateway_failure, report_statuses
 
 
@@ -19,11 +19,28 @@ INTENTS = {
     "SolarTodayIntent": "solar_today",
     "AlarmStatusIntent": "alarms",
     "StatusIntent": "status",
+    "EnergyFlowIntent": "flow",
 }
 HELP_TEXT = (
     "You can ask about battery charge, solar power, solar energy today, "
-    "alarms, or home energy status. What would you like to know?"
+    "alarms, power flow, or home energy status. Say details for the full report, "
+    "or repeat to hear the latest report again. What would you like to know?"
 )
+FLOW_UNCONFIGURED_TEXT = (
+    "Power flow reporting is not configured for this home. Connect the load, grid, "
+    "or battery power sources in your gateway to enable it."
+)
+
+
+def _selection(event):
+    """Session context stores a report selector only, never telemetry or identity."""
+    session = event.get("session")
+    attributes = session.get("attributes") if isinstance(session, dict) else None
+    if isinstance(attributes, dict):
+        report, detailed = attributes.get("energy_report"), attributes.get("energy_detail")
+        if isinstance(report, str) and report in INTENTS.values() and type(detailed) is bool:
+            return report, detailed
+    return "status", False
 
 
 def _speech(text: str, *, end_session: bool = True) -> dict:
@@ -89,6 +106,7 @@ def lambda_handler(event, context, *, deadline=None):
     except GatewayError as exc:
         gateway_failure(exc)
         return _unavailable(event)
+    detailed = False
     if kind == "LaunchRequest":
         # Opening the skill is a request for the same overview as StatusIntent.
         name = "StatusIntent"
@@ -97,12 +115,19 @@ def lambda_handler(event, context, *, deadline=None):
         if not isinstance(intent, dict) or not isinstance(intent.get("name"), str):
             raise PermissionError("Invalid Alexa intent")
         name = intent["name"]
+    elif kind == "Alexa.Presentation.APL.UserEvent":
+        selected, detailed = user_event_selection(event)
+        name = next(key for key, value in INTENTS.items() if value == selected)
     else:
         raise PermissionError("Unsupported Alexa request type")
     if name in {"AMAZON.StopIntent", "AMAZON.CancelIntent"}:
         return _speech("Goodbye.")
     if name in {"AMAZON.HelpIntent", "AMAZON.FallbackIntent"}:
         return message_visuals(event, _speech(HELP_TEXT, end_session=False), title="What you can ask")
+    if name in {"DetailsIntent", "AMAZON.RepeatIntent", "RefreshIntent"}:
+        selected, previous_detail = _selection(event)
+        detailed = name == "DetailsIntent" or previous_detail
+        name = next(key for key, value in INTENTS.items() if value == selected)
     if name not in INTENTS:
         # Never turn arbitrary intent names into gateway paths or write requests.
         return message_visuals(event, _speech("I can only report home energy data. " + HELP_TEXT, end_session=False), title="What you can ask")
@@ -113,11 +138,18 @@ def lambda_handler(event, context, *, deadline=None):
             config = replace(config, timeout_seconds=request_timeout(deadline, config.timeout_seconds))
         payload = fetch_energy(config)
         request_timeout(deadline, 1.0, reserve=0)
-        text = payload["reports"][INTENTS[name]]["text"]
+        selected = INTENTS[name]
+        report = payload["reports"].get(selected)
+        if selected == "flow" and report is None:
+            return message_visuals(event, _speech(FLOW_UNCONFIGURED_TEXT),
+                                   title="Power flow", status="Not configured")
+        text = report.get("brief_text", report["text"]) if selected == "status" and not detailed else report["text"]
     except (UnlinkedAccount, UnconfiguredHome, OAuthError, StoreError) as exc:
         return _account_response(event, exc)
     except GatewayError as exc:
         gateway_failure(exc)
         return _unavailable(event)
     report_statuses(payload)
-    return report_visuals(event, _speech(text), INTENTS[name], payload)
+    response = _speech(text)
+    response["sessionAttributes"] = {"energy_report": selected, "energy_detail": detailed}
+    return report_visuals(event, response, selected, payload, detailed=detailed)

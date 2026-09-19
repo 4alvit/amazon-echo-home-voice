@@ -120,6 +120,7 @@ class HandlerDiagnosticTests(unittest.TestCase):
 
     def test_non_fresh_reports_log_statuses_without_content_and_keep_four_cards(self):
         data = payload()
+        del data["reports"]["flow"]  # Older gateways expose only the original five reports.
         data["mqtt_connected"] = False
         private_report = PRIVATE.replace("\n", " ")
         expected = dict(zip(gateway.REPORT_NAMES, ("stale", "unavailable", "unconfigured", "unavailable", "unavailable")))
@@ -145,6 +146,15 @@ class HandlerDiagnosticTests(unittest.TestCase):
         fetch.assert_called_once()
         self.assertEqual(response["response"]["outputSpeech"]["text"], "Central status report.")
         self.assertTrue(response["response"]["shouldEndSession"])
+
+    def test_optional_flow_status_is_logged_without_its_text_or_sources(self):
+        data = payload()
+        data["reports"]["flow"] = {"status": "unconfigured", "text": PRIVATE.replace("\n", " ")}
+        with patch.object(lambda_handler, "fetch_energy", return_value=data), \
+                self.assertLogs(diagnostics.LOGGER, level="WARNING") as logs:
+            lambda_handler.lambda_handler(event("EnergyFlowIntent"), None)
+        self.assertEqual(fields(logs.records[0])["reports"]["flow"], "unconfigured")
+        self.assertNotIn("private", "".join(logs.output))
 
 
 if __name__ == "__main__":

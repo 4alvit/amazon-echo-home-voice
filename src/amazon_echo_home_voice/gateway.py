@@ -421,7 +421,10 @@ def validate_payload(payload: object, *, now: float, max_age_seconds: float) -> 
             raise GatewayError("Invalid gateway report text")
     brief = reports["status"].get("brief_text")
     if "brief_text" in reports["status"] and not _valid_text(brief, MAX_BRIEF_TEXT_LENGTH):
-        raise GatewayError("Invalid gateway report text")
+        # The full report has already passed validation. An optional enhancement
+        # must not discard its warnings or make an older integration unavailable.
+        status_report = {key: value for key, value in reports["status"].items() if key != "brief_text"}
+        return payload | {"reports": reports | {"status": status_report}}
     return payload
 
 

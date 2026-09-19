@@ -189,15 +189,32 @@ class AdditiveContractTests(unittest.TestCase):
             self.assertEqual(visuals._metric_text(metric(value, "W"))[0], expected)
         self.assertLess(len(visuals._metric_text(metric(1.7e308, "W"))[0]), 24)
 
-    def test_brief_text_and_optional_flow_are_validated_as_speech(self):
-        for invalid in (None, "", "\n", "<speak>unsafe</speak>", "x" * 1201, True):
+    @patch.dict(os.environ, {"ASK_SKILL_ID": SKILL_ID, "IGW_URL": "https://igw.example/v1/energy",
+                             "IGW_READ_TOKEN": "synthetic-token"}, clear=True)
+    def test_invalid_optional_brief_preserves_full_warning_text_without_mutating_input(self):
+        warning = "Battery charge is low. Alarm coverage is incomplete. Check the gateway."
+        for invalid in (None, "", " ", "\n", "unsafe\x00text", "<speak>unsafe</speak>", "x" * 1201,
+                        True, 42, [], {}):
             data = payload()
+            data["reports"]["status"]["text"] = warning
             data["reports"]["status"]["brief_text"] = invalid
-            with self.subTest(invalid=invalid), self.assertRaises(gateway.GatewayError):
-                gateway.validate_payload(data, now=NOW, max_age_seconds=30)
+            with self.subTest(invalid=invalid):
+                cleaned = gateway.validate_payload(data, now=NOW, max_age_seconds=30)
+                self.assertNotIn("brief_text", cleaned["reports"]["status"])
+                self.assertEqual(cleaned["reports"]["status"]["text"], warning)
+                self.assertIs(data["reports"]["status"]["brief_text"], invalid)
+                with patch.object(lambda_handler, "fetch_energy", return_value=cleaned):
+                    result = lambda_handler.lambda_handler(event(kind="LaunchRequest"), None)
+                self.assertEqual(result["response"]["outputSpeech"]["text"], warning)
+
+    def test_valid_brief_does_not_bypass_required_full_report_validation(self):
         data = payload()
         data["reports"]["status"]["brief_text"] = "Central brief summary."
         self.assertEqual(gateway.validate_payload(data, now=NOW, max_age_seconds=30), data)
+        data["reports"]["status"]["text"] = "<invalid>"
+        with self.assertRaises(gateway.GatewayError):
+            gateway.validate_payload(data, now=NOW, max_age_seconds=30)
+        data = payload()
         data["reports"]["flow"]["text"] = "<invalid>"
         with self.assertRaises(gateway.GatewayError):
             gateway.validate_payload(data, now=NOW, max_age_seconds=30)

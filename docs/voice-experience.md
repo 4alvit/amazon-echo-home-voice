@@ -6,6 +6,8 @@ The skill remains a read-only adapter. IGW owns energy calculations, source sele
 
 Opening **Home Energy** or asking for **energy status** prefers the optional `reports.status.brief_text` provided by IGW. Older gateways that provide only `text` continue to work. The concise report keeps central warnings and active alarms: a healthy report can be short, but safety notices are not truncated to meet a speaking-time target. The personal **Alexa, energy** routine still opens this same default report.
 
+If the optional brief is empty, malformed or longer than 1200 characters, the adapter discards that field and reads the validated full status text, including its warnings. It does not coerce invalid values into speech or reject an otherwise valid snapshot. Invalid required report text still fails closed.
+
 - **Details** reads the full central text for the current report. Without an active report context, it reads the full status report.
 - **Repeat** and **refresh** fetch the current report again. Repeat does not replay a cached reading that may have become stale or belong to an expired account link.
 - **Battery**, **solar power**, **solar energy today** and **alarms** select the existing individual reports.
@@ -49,6 +51,8 @@ The adapter does not infer missing values, invent a power-balance equation or dr
 ## Transient failures and response time
 
 A gateway read can retry once after HTTP 502, 503 or 504, or a classified timeout or connection failure. Both attempts share the original gateway timeout; the second receives only the remaining budget and is skipped when less than 100 milliseconds remain. There is no retry delay. The webhook's existing overall deadline still includes signature verification, identity, storage and gateway work.
+
+For personal deployments, a caller deadline bounds response latency while an eight-slot semaphore bounds outstanding transport threads. Python cannot cancel an underlying system DNS lookup or a slow urllib read: after the caller times out, that thread may continue and keeps its slot until the transport actually finishes. Exhausted slots fail promptly as unavailable rather than creating more threads. Late HTTP error responses are closed, and late readings are never returned as current reports. Public household requests retain their pinned HTTPS transport and bounded resolver admission.
 
 Authentication failures, redirects, rate limits, malformed JSON, invalid report text, expired envelopes, certificate failures and network-policy rejections are not retried. Every attempt preserves the same HTTPS, credential, no-redirect and per-household network policy. There is no retry of a write operation: this adapter performs only the read-only energy GET.
 

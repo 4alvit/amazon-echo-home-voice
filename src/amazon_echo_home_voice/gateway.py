@@ -20,6 +20,7 @@ from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_ope
 
 
 REPORT_NAMES = ("battery", "solar", "solar_today", "alarms", "status")
+CLI_REPORT_NAMES = REPORT_NAMES + ("flow",)
 STATUSES = frozenset({"fresh", "stale", "unavailable", "unconfigured"})
 MAX_RESPONSE_BYTES = 32768
 # Includes HTTP headers and chunk framing, in addition to the JSON body limit.
@@ -28,6 +29,10 @@ MAX_TEXT_LENGTH = 1200
 # Safety caveats and active alarms can make the concise report as long as details.
 MAX_BRIEF_TEXT_LENGTH = MAX_TEXT_LENGTH
 UNAVAILABLE_TEXT = "Home energy data is unavailable right now. Please try again later."
+FLOW_UNCONFIGURED_TEXT = (
+    "Power flow reporting is not configured for this home. Connect the load, grid, "
+    "or battery power sources in your gateway to enable it."
+)
 
 
 class GatewayError(Exception):

@@ -3,16 +3,31 @@
 import argparse
 import sys
 
-from .gateway import GatewayConfig, GatewayError, REPORT_NAMES, UNAVAILABLE_TEXT, fetch_energy
+from .gateway import (
+    CLI_REPORT_NAMES,
+    FLOW_UNCONFIGURED_TEXT,
+    GatewayConfig,
+    GatewayError,
+    UNAVAILABLE_TEXT,
+    fetch_energy,
+)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("report", choices=REPORT_NAMES, default="status", nargs="?")
-    args = parser.parse_args()
+    parser.add_argument("report", choices=CLI_REPORT_NAMES, default="status", nargs="?")
+    args = parser.parse_args(argv)
     try:
         payload = fetch_energy(GatewayConfig.from_env())
-        report = payload["reports"][args.report]
+        report = payload["reports"].get(args.report)
+        if report is None:
+            # Gateway validation allows older core-only payloads without optional flow.
+            if args.report == "flow":
+                print(FLOW_UNCONFIGURED_TEXT)
+                print("Report status: unconfigured", file=sys.stderr)
+                return 2
+            print(f"{UNAVAILABLE_TEXT} (missing report {args.report!r})", file=sys.stderr)
+            return 1
     except GatewayError as exc:
         print(f"{UNAVAILABLE_TEXT} ({exc})", file=sys.stderr)
         return 1

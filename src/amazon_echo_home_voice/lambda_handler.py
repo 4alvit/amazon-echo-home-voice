@@ -5,7 +5,13 @@ from dataclasses import replace
 import os
 import re
 
-from .gateway import GatewayConfig, GatewayError, UNAVAILABLE_TEXT, fetch_energy
+from .gateway import (
+    FLOW_UNCONFIGURED_TEXT,
+    GatewayConfig,
+    GatewayError,
+    UNAVAILABLE_TEXT,
+    fetch_energy,
+)
 from .accounts import mode, household_connection, request_timeout, UnlinkedAccount, UnconfiguredHome
 from .oauth import OAuthError
 from .tenant_store import StoreError
@@ -25,10 +31,6 @@ HELP_TEXT = (
     "You can ask about battery charge, solar power, solar energy today, "
     "alarms, power flow, or home energy status. Say details for the full report, "
     "or repeat to hear the latest report again. What would you like to know?"
-)
-FLOW_UNCONFIGURED_TEXT = (
-    "Power flow reporting is not configured for this home. Connect the load, grid, "
-    "or battery power sources in your gateway to enable it."
 )
 
 

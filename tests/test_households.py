@@ -90,11 +90,38 @@ class StoreTests(StoreFixture):
     def test_login_state_is_browser_bound_expires_and_is_single_use_under_race(self):
         state = self.store.create_flow("verifier", "browser")
         self.assertIsNone(self.store.consume_flow(state, "another-browser"))
+
+        def consume(_):
+            try:
+                return self.store.consume_flow(state, "browser")
+            except StoreError as error:
+                return error
+
         with ThreadPoolExecutor(max_workers=2) as pool:
-            results = list(pool.map(lambda _: self.store.consume_flow(state, "browser"), range(2)))
+            results = list(pool.map(consume, range(2)))
+        self.assertIn("verifier", results, "One concurrent consumer must make progress")
+        for index, result in enumerate(results):
+            if isinstance(result, StoreError):
+                self.assert_sqlite_busy(result)
+                # A bounded busy response is allowed, but retrying after the
+                # winning transaction finishes must never consume it again.
+                results[index] = self.store.consume_flow(state, "browser")
         self.assertCountEqual(results, ["verifier", None])
         state = self.store.create_flow("verifier", "browser")
         self.now += 301
+        self.assertIsNone(self.store.consume_flow(state, "browser"))
+
+    def test_busy_flow_consumption_preserves_the_single_use_state(self):
+        state = self.store.create_flow("verifier", "browser")
+        with closing(sqlite3.connect(self.path)) as blocker:
+            blocker.execute("BEGIN IMMEDIATE")
+            try:
+                with self.assertRaises(StoreError) as caught:
+                    self.store.consume_flow(state, "browser")
+                self.assert_sqlite_busy(caught.exception)
+            finally:
+                blocker.rollback()
+        self.assertEqual(self.store.consume_flow(state, "browser"), "verifier")
         self.assertIsNone(self.store.consume_flow(state, "browser"))
 
     def test_sessions_expire_revoke_and_are_bounded_per_account(self):

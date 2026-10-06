@@ -346,3 +346,14 @@ Tests cover five intents, help/stop/lifecycle, application IDs, timestamps, unsu
 - In a test environment, exercise stale/disconnected/unconfigured readings and gateway failure. Do not interrupt live control equipment to test speech.
 
 Simulator and automated test success do not prove physical microphone recognition or playback. Before public distribution, deploy multi-household mode and complete the [account-linking acceptance checks](docs/account-linking.md#acceptance-before-public-release), including real Amazon linking, refresh, and tests on two authorized Echo accounts.
+
+## Related projects
+
+- [Inverter Gateway](https://github.com/victron-venus/inverter-gateway) owns the
+  `/v1/energy` report contract consumed by this skill.
+- [Google Home / Nest reports](https://github.com/4alvit/google-home-voice-stats)
+  presents the same gateway reports through Google Cast and optional voice adapters.
+- [Echo Dot 2 conversion](https://github.com/ha-homelab/ha-echo-dot) and
+  [Echo Show 5 Gen2 conversion](https://github.com/ha-homelab/ha-echo-show-5) are
+  separate hardware-reuse projects for Home Assistant clients. They are not
+  prerequisites for this Alexa skill on an unmodified Echo.

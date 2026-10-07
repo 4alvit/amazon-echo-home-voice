@@ -25,11 +25,23 @@ jobs:
       contents: read
       actions: read
       security-events: write
+  check-2:
+    uses: ./.github/workflows/codeql.yml
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+  check-3:
+    uses: ./.github/workflows/dependency-review.yml
+    permissions:
+      contents: read
   gate:
     name: CI gate
     needs:
       - check-0
       - check-1
+      - check-2
+      - check-3
     if: ${{ always() }}
     runs-on: ${{ fromJSON((vars.CI_RUNNER_MODE == 'self-hosted' || vars.CI_RUNNER_MODE == 'k3s') && ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event_name) && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))) && (vars.CI_RUNNER_LABELS || '[]') || '["ubuntu-latest"]') }}
     timeout-minutes: 5

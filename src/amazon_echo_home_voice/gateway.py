@@ -389,6 +389,17 @@ def _unique_object(pairs: list[tuple]) -> dict:
     return result
 
 
+def _fresh_timestamp(value, now: float, max_age_seconds: float) -> bool:
+    """Reject JSON integers that overflow float conversion as invalid timestamps."""
+    if type(value) not in (int, float):
+        return False
+    try:
+        return (math.isfinite(value) and value > 0
+                and -5 <= now - value <= max_age_seconds)
+    except OverflowError:
+        return False
+
+
 def validate_payload(payload: object, *, now: float, max_age_seconds: float) -> dict:
     """Validate the envelope and speech, leaving all energy calculations in IGW."""
     if not isinstance(payload, dict) or type(payload.get("schema_version")) is not int:
@@ -396,12 +407,7 @@ def validate_payload(payload: object, *, now: float, max_age_seconds: float) -> 
     if payload["schema_version"] != 1 or type(payload.get("mqtt_connected")) is not bool:
         raise GatewayError("Invalid gateway schema")
     generated_at = payload.get("generated_at")
-    if (
-        type(generated_at) not in (int, float)
-        or not math.isfinite(generated_at)
-        or generated_at <= 0
-        or not -5 <= now - generated_at <= max_age_seconds
-    ):
+    if not _fresh_timestamp(generated_at, now, max_age_seconds):
         raise GatewayError("Gateway response is out of date")
     metrics = payload.get("metrics")
     if not isinstance(metrics, dict) or not all(

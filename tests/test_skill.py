@@ -112,6 +112,31 @@ class GatewayTests(unittest.TestCase):
             with self.subTest(change=change), self.assertRaises(gateway.GatewayError):
                 gateway.validate_payload(payload() | change, now=NOW, max_age_seconds=30)
 
+    def test_oversized_json_timestamps_are_safe_validation_errors(self):
+        for timestamp in (10**400, -(10**400), 10**1000):
+            with self.subTest(digits=len(str(timestamp))):
+                with self.assertRaisesRegex(gateway.GatewayError, "out of date"):
+                    gateway.validate_payload(payload() | {"generated_at": timestamp},
+                                             now=NOW, max_age_seconds=30)
+
+    def test_timestamp_acceptance_window_is_unchanged(self):
+        for timestamp in (NOW - 30, NOW + 5, float(NOW - 30), float(NOW + 5)):
+            with self.subTest(timestamp=timestamp):
+                data = payload() | {"generated_at": timestamp}
+                self.assertEqual(gateway.validate_payload(data, now=NOW, max_age_seconds=30), data)
+        for timestamp in (NOW - 30.001, NOW + 5.001, False, float("inf"), float("-inf")):
+            with self.subTest(timestamp=timestamp), self.assertRaises(gateway.GatewayError):
+                gateway.validate_payload(payload() | {"generated_at": timestamp},
+                                         now=NOW, max_age_seconds=30)
+
+    def test_transport_does_not_retry_oversized_timestamps(self):
+        body = json.dumps(payload() | {"generated_at": 10**1000}).encode()
+        self.assertLess(len(body), gateway.MAX_RESPONSE_BYTES)
+        opener = self.opener(body=body)
+        with self.assertRaisesRegex(gateway.GatewayError, "out of date"):
+            gateway.fetch_energy(self.config, opener=opener, now=NOW)
+        opener.open.assert_called_once()
+
     def test_rejects_invalid_speech_and_unknown_status(self):
         for value in ("", " ", "x" * 1201, "<speak>fake</speak>", "text\nmore", None, 1):
             data = payload()
@@ -166,6 +191,24 @@ class LambdaTests(unittest.TestCase):
         fetch.assert_called_once()
         self.assertEqual(result["response"]["outputSpeech"]["text"], gateway.UNAVAILABLE_TEXT)
         self.assertNotIn("private-details", json.dumps(result))
+
+    def test_oversized_gateway_timestamp_preserves_spoken_fallback(self):
+        response = Mock()
+        response.status = 200
+        response.headers = {"Content-Type": "application/json"}
+        response.read.return_value = json.dumps(payload() | {"generated_at": 10**1000}).encode()
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        opener = Mock()
+        opener.open.return_value = response
+        with patch.object(gateway, "build_opener", return_value=opener):
+            with self.assertLogs("amazon_echo_home_voice.diagnostics", level="WARNING") as logs:
+                result = lambda_handler.lambda_handler(event(), None)
+        self.assertEqual(result["response"]["outputSpeech"]["text"], gateway.UNAVAILABLE_TEXT)
+        self.assertTrue(result["response"]["shouldEndSession"])
+        self.assertIn('"category":"envelope_age"', logs.output[0])
+        self.assertNotIn(str(10**1000), json.dumps(result) + " ".join(logs.output))
+        opener.open.assert_called_once()
 
     @patch.object(lambda_handler, "fetch_energy")
     def test_auth_and_expired_requests_fail_before_gateway(self, fetch):

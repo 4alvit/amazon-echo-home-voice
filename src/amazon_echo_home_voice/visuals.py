@@ -41,7 +41,8 @@ METRICS = {
     "battery_power": ("battery_power", "W", "Battery: + charging / - discharging"),
 }
 ACTIONS = {"refresh": "Refresh", "battery": "Battery", "today": "Today", "details": "Details"}
-TOKEN_PREFIX = "home-energy:v1:"
+# A public APL routing marker, not an authentication credential.
+TOKEN_PREFIX = "home-energy:v1:"  # nosec B105
 
 
 def _button(action):

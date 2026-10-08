@@ -1,8 +1,6 @@
 name: Test voice adapter
 on:
   workflow_call:
-  push:
-  pull_request:
 permissions:
   contents: read
 jobs:

@@ -2,14 +2,21 @@
   "repository": "4alvit/amazon-echo-home-voice",
   "mode": "validation-only",
   "default_branch": "main",
-  "validation_workflows": ["validate.yml", "test.yml", "codeql.yml", "dependency-review.yml"],
+  "validation_workflows": [
+    "validate.yml",
+    "test.yml",
+    "codeql.yml",
+    "dependency-review.yml",
+    "security.yml"
+  ],
   "local_checks": [
     "bash scripts/ci.sh"
   ],
   "notes": [
     "Validation-only policy: no synthetic beta/RC artifacts or tag-triggered stable releases.",
     "Python version matrix and webhook container tests remain required. No AWS/Alexa deployment or live voice requests.",
-    "Includes both portable Cloudflare Terraform modules added on main; local and callable checks use disposable copies with backend disabled and never plan/apply."
+    "Includes both portable Cloudflare Terraform modules added on main; local and callable checks use disposable copies with backend disabled and never plan/apply.",
+    "Quality gate is the sole push/PR entry point; reusable test workflows do not duplicate event-triggered runs."
   ],
   "visibility": "public",
   "terraform_roots": [

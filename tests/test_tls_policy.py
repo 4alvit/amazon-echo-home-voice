@@ -18,6 +18,8 @@ from unittest.mock import patch
 from urllib.request import Request
 from urllib.error import URLError
 
+from native_tls_support import assert_native_ec192_unsupported
+
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
@@ -128,6 +130,7 @@ def peer(
     context.minimum_version = context.maximum_version = version
     context.set_ciphers("DEFAULT:@SECLEVEL=0")
     context.load_cert_chain(chain[0], chain[1])
+    context.set_alpn_protocols(["h2", "http/1.1"])
     if client_auth:
         context.load_verify_locations(chain[2])
         context.verify_mode = ssl.CERT_REQUIRED
@@ -144,6 +147,7 @@ def peer(
                     raw.settimeout(5)
                     with context.wrap_socket(raw, server_side=True) as connection:
                         result["tls"] = connection.version()
+                        result["alpn"] = connection.selected_alpn_protocol()
                         if client_auth:
                             result["client_certificate"] = connection.getpeercert(binary_form=True)
                         data = b""
@@ -254,7 +258,15 @@ class TLSClientTests(unittest.TestCase):
         ):
             chain = self.chains.get(case, self.chains["strong"])
             with self.subTest(operation=operation, case=case, version=version):
-                calibrate(chain, version)
+                try:
+                    calibrate(chain, version)
+                except ssl.SSLCertVerificationError as failure:
+                    self.assertEqual(case, "weak-ec-root")
+                    assert_native_ec192_unsupported(self.chains, failure)
+                    # The provider itself rejects this valid EC192 fixture. The
+                    # product still has to reject it before sending any bytes.
+                    print(f"Native EC192 decoding unsupported: {operation}/{version.name}; "
+                          "checking product rejection without a successful low-strength oracle")
                 ca = self.chains["strong-ec"][2] if case == "untrusted" else chain[2]
                 env = clean | {"SSL_CERT_FILE":str(ca), "SSL_CERT_DIR":str(Path(self.directory.name)/"empty")}
                 with patch.dict(os.environ, env, clear=True), peer(chain, version, response_body=b'{"state":"42"}') as (port, observed):
@@ -267,6 +279,17 @@ class TLSClientTests(unittest.TestCase):
                         with self.assertRaises(error):
                             self.exercise(operation, url, port)
                 self.assertEqual(bool(observed["application_bytes"]), case.startswith("strong"))
+                if case.startswith("strong"):
+                    self.assertEqual(observed["alpn"], "http/1.1")
+
+    def test_native_diagnosis_rejects_unrelated_ca_failure(self):
+        with self.assertRaises(AssertionError):
+            assert_native_ec192_unsupported(self.chains, SimpleNamespace(verify_code=62))
+
+    def test_native_diagnosis_rejects_other_fixture_keys(self):
+        chains = self.chains | {"weak-ec-root": self.chains["strong-ec"]}
+        with self.assertRaises(AssertionError):
+            assert_native_ec192_unsupported(chains, SimpleNamespace(verify_code=20))
 
     def test_policy_preserves_cipher_and_protocol_constraints(self):
         from amazon_echo_home_voice.tls_policy import enforce_peer_key_policy

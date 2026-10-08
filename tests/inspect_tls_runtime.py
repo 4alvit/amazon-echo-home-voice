@@ -8,6 +8,7 @@ import tempfile
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
+from native_tls_support import native_certificate_results
 from test_tls_policy import calibrate, make_chains
 
 
@@ -47,6 +48,8 @@ def inspect_runtime():
             }
     with tempfile.TemporaryDirectory(prefix="native-fixture-diagnostic-") as directory:
         chains = make_chains(Path(directory))
+        if executable is None:
+            result["native_certificate_decode"] = native_certificate_results(chains)
         for name in ("strong", "strong-ec", "weak-ec-root"):
             certificate, _, ca = chains[name]
             root = x509.load_pem_x509_certificate(ca.read_bytes())

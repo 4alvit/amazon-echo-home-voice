@@ -9,7 +9,6 @@ import os
 from pathlib import Path
 import re
 import sys
-import ssl
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import HTTPSHandler, HTTPRedirectHandler, ProxyHandler, Request, build_opener
@@ -81,12 +80,12 @@ def auth_headers(mode: str) -> dict:
 
 
 def api_get(path: str, headers: dict):
-    from amazon_echo_home_voice.tls_policy import enforce_peer_key_policy
+    from amazon_echo_home_voice.tls_policy import https_context
 
     request = Request("https://api.cloudflare.com/client/v4" + path, headers=headers, method="GET")
     try:
         with build_opener(NoRedirect(), ProxyHandler({}),
-                HTTPSHandler(context=enforce_peer_key_policy(ssl.create_default_context()))).open(request, timeout=15) as response:
+                HTTPSHandler(context=https_context())).open(request, timeout=15) as response:
             result = json.load(response)
     except (HTTPError, URLError, OSError, ValueError) as exc:
         raise PlanError("Cloudflare read failed; no changes were applied") from exc

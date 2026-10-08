@@ -98,3 +98,10 @@ def enforce_peer_key_policy(context: ssl.SSLContext) -> ssl.SSLContext:
     context.sslsocket_class = _VerifiedSocket
     context.sslobject_class = _VerifiedObject
     return context
+
+
+def https_context() -> ssl.SSLContext:
+    """Preserve stdlib HTTPS ALPN while enforcing the owned-context key policy."""
+    context = enforce_peer_key_policy(ssl.create_default_context())
+    context.set_alpn_protocols(["http/1.1"])
+    return context

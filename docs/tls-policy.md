@@ -45,3 +45,12 @@ production or contact an actual household, identity provider or Amazon service.
 The public relay/Cloudflare and AWS inbound TLS configurations are separate
 operator/provider responsibilities. This change is not a project-wide OpenSSF
 attestation.
+
+
+The pinned Linux SAM image cannot decode the test-only EC192 public root key.
+The suite independently verifies that fixture's issuer and signatures, confirms
+native key decoding fails while RSA2048/EC256 controls succeed, and still
+requires every product client to reject it before application bytes. This is
+native-provider rejection evidence, not a successful EC192 handshake or a
+claim that the post-handshake guard ran. All supported fixture chains retain
+the successful low-strength oracle requirement; no cases are skipped.

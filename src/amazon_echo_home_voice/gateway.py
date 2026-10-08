@@ -10,7 +10,6 @@ import os
 import queue
 import re
 import socket
-import ssl
 import threading
 import time
 import unicodedata
@@ -18,7 +17,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPSHandler, HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
-from .tls_policy import enforce_peer_key_policy
+from .tls_policy import https_context
 
 REPORT_NAMES = ("battery", "solar", "solar_today", "alarms", "status")
 CLI_REPORT_NAMES = REPORT_NAMES + ("flow",)
@@ -296,7 +295,7 @@ class _PinnedHTTPSConnection(HTTPSConnection):
         self.endpoint = endpoint
         self.deadline = deadline
         super().__init__(hostname, port=443, timeout=_remaining(deadline),
-                         context=enforce_peer_key_policy(ssl.create_default_context()))
+                         context=https_context())
 
     def connect(self):
         family, address = self.endpoint
@@ -340,7 +339,7 @@ def _personal_body(config: GatewayConfig, headers: dict, opener) -> bytes:
             request = Request(config.url, headers=headers, method="GET")
             # Do not inherit proxy settings for authenticated traffic.
             transport = opener or build_opener(ProxyHandler({}), NoRedirects(),
-                HTTPSHandler(context=enforce_peer_key_policy(ssl.create_default_context())))
+                HTTPSHandler(context=https_context()))
             with transport.open(request, timeout=config.timeout_seconds) as response:
                 body = _response_body(response)
             result.put((True, body))

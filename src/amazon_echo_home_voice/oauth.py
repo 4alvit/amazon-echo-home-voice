@@ -21,8 +21,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote_plus, urlencode, urlsplit
 from urllib.request import HTTPSHandler, HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
-import ssl
-from .tls_policy import enforce_peer_key_policy
+from .tls_policy import https_context
 
 MAX_RESPONSE_BYTES = 16384
 MAX_ACCESS_TOKEN_LENGTH = 8192
@@ -248,7 +247,7 @@ class OAuthClient:
         # Each production request has its own opener. Neither shared handlers nor
         # environment proxy configuration can redirect authenticated traffic.
         opener = self._opener or build_opener(ProxyHandler({}), NoRedirects(),
-                HTTPSHandler(context=enforce_peer_key_policy(ssl.create_default_context())))
+                HTTPSHandler(context=https_context()))
         try:
             with opener.open(request, timeout=self.config.timeout_seconds) as response:
                 if response.status != 200:

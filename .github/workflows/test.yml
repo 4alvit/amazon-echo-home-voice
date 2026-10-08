@@ -19,7 +19,9 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: ${{ matrix.python }}
-      - run: python -m pip install '.[multi-household]'
+      - run: |
+          python -m pip install --require-hashes --only-binary=:all: -r .github/requirements-build.txt -r requirements-test.lock
+          python -m pip install --no-deps --no-build-isolation '.[multi-household]'
       - run: bash scripts/ci.sh unit
   webhook:
     runs-on: ${{ fromJSON((vars.CI_RUNNER_MODE == 'self-hosted' || vars.CI_RUNNER_MODE == 'k3s') && ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event_name) && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))) && (vars.CI_RUNNER_LABELS || '[]') || '["ubuntu-latest"]') }}

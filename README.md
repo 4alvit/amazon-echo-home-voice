@@ -364,3 +364,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development, bug reports and proposal
 [SECURITY.md](SECURITY.md) for confidential vulnerability reports and deployment
 boundaries, and the [OpenSSF evidence index](docs/openssf-evidence.md) for assessment
 scope and verification.
+
+See [dependency lock maintenance](docs/DEPENDENCY_LOCKS.md) for the hash-verified
+CI and container installation steps and update checks.

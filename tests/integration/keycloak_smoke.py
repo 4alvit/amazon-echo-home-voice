@@ -108,11 +108,15 @@ def checked_response_headers(headers):
     """Reject upstream header injection before committing any HTTP response."""
     result = []
     for name, value in headers:
-        if not re.fullmatch(r"[!#$%&'*+.^_`|~0-9A-Za-z-]+", name):
+        # Construct delimiter-free strings for the HTTP writer, then reject
+        # any input that needed alteration rather than repairing its meaning.
+        safe_name = name.replace("\r", "").replace("\n", "").replace(":", "")
+        safe_value = value.replace("\r", "").replace("\n", "")
+        if safe_name != name or not re.fullmatch(r"[!#$%&'*+.^_`|~0-9A-Za-z-]+", safe_name):
             raise ValueError("Invalid upstream header name.")
-        if "\r" in value or "\n" in value:
+        if safe_value != value:
             raise ValueError("Invalid upstream header value.")
-        result.append((name, value))
+        result.append((safe_name, safe_value))
     return result
 
 

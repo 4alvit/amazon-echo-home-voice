@@ -19,8 +19,9 @@ from threading import BoundedSemaphore, Thread
 import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote_plus, urlencode, urlsplit
-from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
+from urllib.request import HTTPSHandler, HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
+from .tls_policy import https_context
 
 MAX_RESPONSE_BYTES = 16384
 MAX_ACCESS_TOKEN_LENGTH = 8192
@@ -245,7 +246,8 @@ class OAuthClient:
     def _request_json(self, request: Request, *, authorization_code: bool) -> dict:
         # Each production request has its own opener. Neither shared handlers nor
         # environment proxy configuration can redirect authenticated traffic.
-        opener = self._opener or build_opener(ProxyHandler({}), NoRedirects())
+        opener = self._opener or build_opener(ProxyHandler({}), NoRedirects(),
+                HTTPSHandler(context=https_context()))
         try:
             with opener.open(request, timeout=self.config.timeout_seconds) as response:
                 if response.status != 200:

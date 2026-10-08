@@ -54,7 +54,7 @@ certification and store publication remain separate steps.
 
 ## Included and still required
 
-The repository includes an English (US) interaction model with invocation name **home energy**, a Python Lambda handler, a signature-verified self-hosted HTTPS webhook, a dependency-free smoke CLI, automated security and isolation tests, Docker Compose, and an optional personal-mode AWS SAM template. Multi-household mode adds OAuth account linking, a household connection portal, encrypted persistent storage, and a self-hosted Keycloak deployment example.
+The repository includes an English (US) interaction model with invocation name **home energy**, a Python Lambda handler, a signature-verified self-hosted HTTPS webhook, a smoke CLI with verified TLS, automated security and isolation tests, Docker Compose, and an optional personal-mode AWS SAM template. Multi-household mode adds OAuth account linking, a household connection portal, encrypted persistent storage, and a self-hosted Keycloak deployment example.
 
 See the [anonymized verification summary](docs/validation-2026-09-12.md) for completed checks and the remaining physical Echo test. Deployment examples contain placeholders, not an operator's account identifiers, network topology, credentials, or live energy readings.
 
@@ -314,7 +314,7 @@ Before changing the Alexa Console endpoint, verify trusted TLS, `404` on other p
 
 ## Optional Lambda deployment
 
-This template supports **personal mode only**. Use only an AWS account authorized for this home project. The deployment script requires an explicitly selected profile. Lambda needs no external Python packages; the Alexa trigger authenticates invocation, and handler code independently verifies ID and timestamp.
+This template supports **personal mode only**. Use only an AWS account authorized for this home project. The deployment script requires an explicitly selected profile. Lambda packages the locked cryptography dependency for exact TLS key checks; the Alexa trigger authenticates invocation, and handler code independently verifies ID and timestamp.
 
 1. Create the custom skill and import/build the model as above.
 2. In your chosen AWS account/region, create an existing Secrets Manager secret with a `read_token` JSON property. For outbound Access, create another with `client_id` and `client_secret`. Supply ARNs, never raw secret values, to CloudFormation. The deployment identity needs permission to resolve those secrets.
@@ -367,3 +367,5 @@ scope and verification.
 
 See [dependency lock maintenance](docs/DEPENDENCY_LOCKS.md) for the hash-verified
 CI and container installation steps and update checks.
+
+See [TLS client requirements](docs/tls-policy.md) for supported runtimes and key minima.

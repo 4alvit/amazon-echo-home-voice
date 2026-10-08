@@ -13,7 +13,7 @@ from urllib.parse import parse_qs, urlencode, urlsplit
 from cryptography.fernet import Fernet
 
 from amazon_echo_home_voice import portal
-from amazon_echo_home_voice.oauth import Identity, PortalLogin, InvalidToken, OAuthUnavailable
+from amazon_echo_home_voice.oauth import Identity, PortalLogin, OAuthUnavailable
 from amazon_echo_home_voice.gateway import GatewayError
 from amazon_echo_home_voice.tenant_store import TenantStore
 from test_oauth import config

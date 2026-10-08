@@ -3,8 +3,10 @@
 import json
 import os
 import time
-from urllib.request import ProxyHandler, build_opener
+import ssl
+from urllib.request import HTTPSHandler, ProxyHandler, build_opener
 
+from .tls_policy import enforce_peer_key_policy
 from .gateway import GatewayError, NoRedirects, _unique_object
 from .lambda_handler import lambda_handler, validate_event
 
@@ -14,7 +16,8 @@ VOICE_BUDGET_SECONDS = 5.0
 
 def _download_certificate(url: str) -> bytes:
     """Bound only the SDK's transport; its certificate URL/trust checks stay intact."""
-    with build_opener(ProxyHandler({}), NoRedirects()).open(url, timeout=2) as response:
+    with build_opener(ProxyHandler({}), NoRedirects(),
+                HTTPSHandler(context=enforce_peer_key_policy(ssl.create_default_context()))).open(url, timeout=2) as response:
         body = response.read(16385)
         if response.status != 200 or len(body) > 16384:
             raise ValueError("Invalid certificate response")

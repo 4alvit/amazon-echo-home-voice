@@ -145,7 +145,8 @@ class PublicGatewayTests(unittest.TestCase):
     def exchange(self, response):
         secured = SecureSocket(response)
         raw = Mock()
-        context = Mock()
+        context = ssl.create_default_context()
+        context.wrap_socket = Mock()
         context.wrap_socket.return_value = secured
         with patch.object(socket, "getaddrinfo", side_effect=[records(PUBLIC_IP), records("127.0.0.1")]) as dns, \
                 patch.object(socket, "socket", return_value=raw) as factory, \
@@ -190,7 +191,8 @@ class PublicGatewayTests(unittest.TestCase):
             + b"\r\nContent-Length: 0\r\n\r\n",
         ):
             secured = SecureSocket(response)
-            context = Mock()
+            context = ssl.create_default_context()
+            context.wrap_socket = Mock()
             context.wrap_socket.return_value = secured
             with self.subTest(response=response[:30]), \
                     patch.object(socket, "getaddrinfo", return_value=records(PUBLIC_IP)), \
@@ -207,7 +209,8 @@ class PublicGatewayTests(unittest.TestCase):
         self.assertTrue(connection._context.check_hostname)
         self.assertEqual(connection._context.verify_mode, ssl.CERT_REQUIRED)
         raw = Mock()
-        context = Mock()
+        context = ssl.create_default_context()
+        context.wrap_socket = Mock()
         context.wrap_socket.side_effect = ssl.SSLCertVerificationError("wrong hostname")
         with patch.object(socket, "getaddrinfo", return_value=records(PUBLIC_IP)), \
                 patch.object(socket, "socket", return_value=raw), \

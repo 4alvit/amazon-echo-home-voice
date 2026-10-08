@@ -76,3 +76,24 @@ jobs:
           terraform_version: '1.15.7'
           terraform_wrapper: false
       - run: bash scripts/ci.sh terraform
+  lambda-package:
+    name: Lambda Python 3.12 package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Build and test in the pinned matching Linux SAM image
+        run: |
+          docker run --rm --platform linux/amd64 --entrypoint /bin/bash \
+            --env SAM_CLI_TELEMETRY=0 --env AWS_EC2_METADATA_DISABLED=true \
+            --volume "$PWD:/workspace:ro" --workdir /workspace \
+            public.ecr.aws/sam/build-python3.12@sha256:6fcfdfc2cb86f20f1a9b62b86fcf376e2be6959e5c3f561fc6cc31931a091e0b \
+            -euc 'sam build --template-file template.yaml --build-dir /tmp/voice-build --cache-dir /tmp/voice-cache
+          export PYTHONPATH=/tmp/voice-build/HomeEnergyFunction
+          python3.12 -c "import cryptography; assert cryptography.__version__ == \"50.0.2\"; from amazon_echo_home_voice.lambda_handler import lambda_handler"
+          python3.12 -m unittest discover -s tests -p test_tls_policy.py -v'

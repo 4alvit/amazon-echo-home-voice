@@ -7,7 +7,8 @@ set -euo pipefail
 : "${IGW_READ_TOKEN_SECRET_ARN:?Set the existing Secrets Manager secret ARN}"
 : "${STACK_NAME:=home-energy-alexa}"
 cd "$(dirname "$0")/.."
-sam build --template-file template.yaml
+sam build --use-container --template-file template.yaml \
+  --build-image public.ecr.aws/sam/build-python3.12@sha256:6fcfdfc2cb86f20f1a9b62b86fcf376e2be6959e5c3f561fc6cc31931a091e0b
 sam deploy --template-file .aws-sam/build/template.yaml \
   --stack-name "$STACK_NAME" --profile "$AWS_PROFILE" --region "$AWS_REGION" \
   --resolve-s3 --capabilities CAPABILITY_IAM --no-fail-on-empty-changeset \

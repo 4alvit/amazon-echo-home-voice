@@ -96,4 +96,5 @@ jobs:
             -euc 'sam build --template-file template.yaml --build-dir /tmp/voice-build --cache-dir /tmp/voice-cache
           export PYTHONPATH=/tmp/voice-build/HomeEnergyFunction
           python3.12 -c "import cryptography; assert cryptography.__version__ == \"50.0.2\"; from amazon_echo_home_voice.lambda_handler import lambda_handler"
+          python3.12 tests/inspect_tls_runtime.py
           python3.12 -m unittest discover -s tests -p test_tls_policy.py -v'

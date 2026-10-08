@@ -24,6 +24,17 @@ class SmokeBoundaryTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 smoke.checked_response_headers([("Location", value)])
 
+    def test_header_validation_rejects_delimiters_at_every_position(self):
+        for delimiter in ("\r", "\n", "\r\n"):
+            for index in range(len("Location") + 1):
+                name = "Location"[:index] + delimiter + "Location"[index:]
+                with self.subTest(name=name), self.assertRaises(ValueError):
+                    smoke.checked_response_headers([(name, "value")])
+            for index in range(len("https://example.test") + 1):
+                value = "https://example.test"[:index] + delimiter + "https://example.test"[index:]
+                with self.subTest(value=value), self.assertRaises(ValueError):
+                    smoke.checked_response_headers([("Location", value)])
+
     def test_legitimate_redirect_and_duplicate_cookies_are_preserved(self):
         headers = [("Location", "https://example.test/callback?code=a&state=b"),
                    ("Set-Cookie", "a=1; Secure; HttpOnly"),

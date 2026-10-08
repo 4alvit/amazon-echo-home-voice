@@ -79,8 +79,17 @@ def auth_headers(mode: str) -> dict:
     return headers
 
 
+def https_context_factory():
+    """Require the installed project before reading credentials or doing I/O."""
+    try:
+        from amazon_echo_home_voice.tls_policy import https_context
+    except ImportError as exc:
+        raise PlanError("Run this script from the installed project environment") from exc
+    return https_context
+
+
 def api_get(path: str, headers: dict):
-    from amazon_echo_home_voice.tls_policy import https_context
+    https_context = https_context_factory()
 
     request = Request("https://api.cloudflare.com/client/v4" + path, headers=headers, method="GET")
     try:
@@ -108,6 +117,7 @@ def main() -> int:
         for value in (args.tunnel_id, args.connector_id):
             if not re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", value):
                 raise PlanError("Tunnel and connector identifiers must be lowercase UUIDs")
+        https_context_factory()
         headers = auth_headers(args.auth)
         prefix = "/accounts/" + args.account_id + "/cfd_tunnel/" + args.tunnel_id
         clients = api_get(prefix + "/connections", headers)

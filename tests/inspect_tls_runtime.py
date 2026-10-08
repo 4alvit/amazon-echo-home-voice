@@ -1,4 +1,5 @@
 """Report native fixture support without changing the mandatory TLS assertions."""
+import http.client
 import json
 from pathlib import Path
 import shutil
@@ -63,7 +64,7 @@ def inspect_runtime():
                 try:
                     calibrate(chains[name], version)
                     handshakes[version.name] = {"verified_request": True}
-                except Exception as error:
+                except (OSError, AssertionError, http.client.HTTPException) as error:
                     handshakes[version.name] = {
                         "verified_request": False, "type": type(error).__name__, "error": str(error)
                     }

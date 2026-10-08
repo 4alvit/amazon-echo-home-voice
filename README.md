@@ -357,3 +357,10 @@ Simulator and automated test success do not prove physical microphone recognitio
   [Echo Show 5 Gen2 conversion](https://github.com/ha-homelab/ha-echo-show-5) are
   separate hardware-reuse projects for Home Assistant clients. They are not
   prerequisites for this Alexa skill on an unmodified Echo.
+
+## Contributing and security
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development, bug reports and proposals,
+[SECURITY.md](SECURITY.md) for confidential vulnerability reports and deployment
+boundaries, and the [OpenSSF evidence index](docs/openssf-evidence.md) for assessment
+scope and verification.

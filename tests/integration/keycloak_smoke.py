@@ -19,6 +19,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import importlib.util
 import json
 import os
+import re
 from pathlib import Path
 import secrets
 import socket
@@ -87,8 +88,11 @@ def checked(client, description, operation):
         raise RuntimeError(f"{description} failed validation: {fields}.") from None
 
 
-def docker(*arguments: str) -> str:
-    result = subprocess.run(["docker", *arguments], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+def docker(*arguments: str, environment: str | None = None) -> str:
+    # Docker reads --env-file /dev/stdin before starting the container. Keep
+    # synthetic database credentials in the pipe rather than host-side files.
+    result = subprocess.run(["docker", *arguments], input=environment,
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if result.returncode:
         raise RuntimeError(f"A disposable Docker {arguments[0]} command failed.")
     return result.stdout.strip()
@@ -98,6 +102,25 @@ def private_text(path: Path, text: str) -> None:
     with path.open("x", encoding="utf-8") as output:
         os.chmod(path, 0o600)
         output.write(text)
+
+
+def checked_response_headers(headers):
+    """Reject upstream header injection before committing any HTTP response."""
+    result = []
+    for name, value in headers:
+        if not re.fullmatch(r"[!#$%&'*+.^_`|~0-9A-Za-z-]+", name):
+            raise ValueError("Invalid upstream header name.")
+        if "\r" in value or "\n" in value:
+            raise ValueError("Invalid upstream header value.")
+        result.append((name, value))
+    return result
+
+
+def server_tls_context():
+    """The disposable HTTPS endpoint has the same TLS floor as production."""
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    return context
 
 
 class FormParser(HTMLParser):
@@ -156,14 +179,14 @@ def provider():
         # owner-only parent remains private; Keycloak's UID must read the file.
         realm_path.chmod(0o644)
         database_password = secrets.token_urlsafe(48)
-        private_text(directory / "postgres.env", f"POSTGRES_DB=keycloak\nPOSTGRES_USER=keycloak\nPOSTGRES_PASSWORD={database_password}\n")
-        private_text(directory / "keycloak.env", "\n".join([
+        postgres_environment = f"POSTGRES_DB=keycloak\nPOSTGRES_USER=keycloak\nPOSTGRES_PASSWORD={database_password}\n"
+        keycloak_environment = "\n".join([
             "KC_DB=postgres", f"KC_DB_URL=jdbc:postgresql://{name}-db:5432/keycloak",
             "KC_DB_USERNAME=keycloak", f"KC_DB_PASSWORD={database_password}",
             "KC_HOSTNAME=https://auth.example.test", "KC_HOSTNAME_STRICT=true",
             "KC_HTTP_ENABLED=true", "KC_PROXY_HEADERS=xforwarded",
             "JAVA_OPTS_KC_HEAP=-Xms128m -Xmx512m",
-        ]) + "\n")
+        ]) + "\n"
         certificate = directory / "tls.pem"
         key = directory / "tls.key"
         openssl = subprocess.run([
@@ -178,7 +201,7 @@ def provider():
             docker("network", "create", name)
             db_name = name + "-db"
             containers.append(db_name)
-            docker("run", "--detach", "--name", db_name, "--network", name, "--env-file", str(directory / "postgres.env"), POSTGRES_IMAGE)
+            docker("run", "--detach", "--name", db_name, "--network", name, "--env-file", "/dev/stdin", POSTGRES_IMAGE, environment=postgres_environment)
             for _ in range(60):
                 ready = subprocess.run(["docker", "exec", db_name, "pg_isready", "-U", "keycloak", "-d", "keycloak"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 if ready.returncode == 0:
@@ -189,9 +212,9 @@ def provider():
             keycloak_name = name + "-identity"
             containers.append(keycloak_name)
             docker("run", "--detach", "--name", keycloak_name, "--network", name,
-                   "--publish", "127.0.0.1::8080", "--env-file", str(directory / "keycloak.env"),
+                   "--publish", "127.0.0.1::8080", "--env-file", "/dev/stdin",
                    "--mount", f"type=bind,src={realm_path},dst=/opt/keycloak/data/import/home-energy-realm.json,readonly",
-                   KEYCLOAK_IMAGE, "start", "--import-realm")
+                   KEYCLOAK_IMAGE, "start", "--import-realm", environment=keycloak_environment)
             upstream_port = int(docker("port", keycloak_name, "8080/tcp").rsplit(":", 1)[1])
 
             class Proxy(BaseHTTPRequestHandler):
@@ -210,14 +233,15 @@ def provider():
                         connection.request(self.command, self.path, body=body, headers=headers)
                         response = connection.getresponse()
                         data = response.read()
+                        response_headers = checked_response_headers(response.getheaders())
                         self.send_response(response.status)
-                        for key, value in response.getheaders():
+                        for key, value in response_headers:
                             if key.lower() not in ("connection", "transfer-encoding", "content-length"):
                                 self.send_header(key, value)
                         self.send_header("Content-Length", str(len(data)))
                         self.end_headers()
                         self.wfile.write(data)
-                    except OSError:
+                    except (OSError, ValueError):
                         self.send_error(503)
                     finally:
                         connection.close()
@@ -226,7 +250,7 @@ def provider():
                 do_POST = forward
 
             server = ThreadingHTTPServer(("127.0.0.1", 0), Proxy)
-            tls_server = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            tls_server = server_tls_context()
             tls_server.load_cert_chain(certificate, key)
             server.socket = tls_server.wrap_socket(server.socket, server_side=True)
             Thread(target=server.serve_forever, daemon=True).start()
@@ -272,10 +296,15 @@ def provider():
             # failure can be investigated without keeping containers running.
             diagnostics = []
             for container in containers:
-                for arguments in (("inspect", "--format", "{{json .State}}", container),
-                                  ("logs", "--tail", "80", container)):
-                    result = subprocess.run(["docker", *arguments], capture_output=True, text=True)
-                    diagnostics.append(result.stdout + result.stderr)
+                # Container logs may contain provider responses or credentials.
+                # Retain only fixed-format lifecycle data, never application logs.
+                result = subprocess.run([
+                    "docker", "inspect", "--format",
+                    "{{.State.Status}} {{.State.ExitCode}} {{.State.OOMKilled}}",
+                    container,
+                ], capture_output=True, text=True)
+                if result.returncode == 0 and re.fullmatch(r"[a-z]+ -?\d+ (?:true|false)\n?", result.stdout):
+                    diagnostics.append(result.stdout.strip())
             private_text(private_directory / (name + "-failure.log"), "\n".join(diagnostics))
             raise
         finally:

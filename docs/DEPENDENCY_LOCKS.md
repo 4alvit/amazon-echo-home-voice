@@ -8,7 +8,7 @@ unlocked build environment. Application dependencies remain installed from their
 full locks; `--no-deps` is used only for the subsequent local project install.
 
 The first two comment lines in each generated lock record its `uv pip compile`
-command. Run that command from the repository root with uv 0.12.7 to regenerate
+command. Run that command from the repository root with uv 0.12.18 to regenerate
 the lock, review version and hash changes, then repeat the corresponding CI
 checks before merging. Hashes establish the selected artifact identity; they do
 not establish that a package is free of vulnerabilities. Keep dependency

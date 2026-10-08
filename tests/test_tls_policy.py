@@ -205,6 +205,7 @@ def peer(
 
 def calibrate(chain: tuple[Path, Path, Path], version: ssl.TLSVersion) -> None:
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
     context.set_ciphers("DEFAULT:@SECLEVEL=0")
     context.load_verify_locations(chain[2])
     assert context.verify_mode == ssl.CERT_REQUIRED and context.check_hostname

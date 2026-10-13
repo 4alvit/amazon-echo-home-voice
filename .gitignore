@@ -36,3 +36,17 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 !*.tfvars.example
+
+# Isolated RC fuzz runtime and local diagnostic inputs
+.fuzz-venv/
+crash-*
+timeout-*
+oom-*
+
+# Local release overlays and payloads
+.release-plan.json
+.release-inputs.json
+release-dist/
+release-assets/
+.release-download/
+.release-evidence/

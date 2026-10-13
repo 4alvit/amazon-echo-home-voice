@@ -1,0 +1,13 @@
+{
+  "required": [
+    "src",
+    "pyproject.toml",
+    "skill-package",
+    "template.yaml",
+    "deploy",
+    "Dockerfile",
+    "compose.yaml",
+    "requirements-webhook.lock",
+    ".github/requirements-build.txt"
+  ]
+}

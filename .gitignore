@@ -36,3 +36,9 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 !*.tfvars.example
+
+# Isolated RC fuzz runtime and local diagnostic inputs
+.fuzz-venv/
+crash-*
+timeout-*
+oom-*

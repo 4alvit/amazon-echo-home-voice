@@ -1,5 +1,7 @@
 # Home Energy for Amazon Echo
 
+[![Fuzzing: RC only](https://img.shields.io/badge/Fuzzing-RC%20only-blue)](docs/fuzzing.md)
+
 A read-only **Alexa custom skill** for battery charge, current solar power, solar energy today, alarms, and system status. It reads centrally formatted English reports from `inverter-gateway` (IGW). Home Assistant is not required.
 
 ```mermaid
@@ -369,3 +371,9 @@ See [dependency lock maintenance](docs/DEPENDENCY_LOCKS.md) for the hash-verifie
 CI and container installation steps and update checks.
 
 See [TLS client requirements](docs/tls-policy.md) for supported runtimes and key minima.
+
+## Release-candidate fuzzing
+
+The real IGW report-envelope validator receives synthetic JSON at a fixed clock. Accepted reports must retain bounded freshness and stable normalization. No Alexa endpoint, gateway request, account lookup or device action is invoked.
+
+[RC-only fuzzing policy, local reproduction and failure handling](docs/fuzzing.md).

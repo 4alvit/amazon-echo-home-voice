@@ -377,3 +377,6 @@ See [TLS client requirements](docs/tls-policy.md) for supported runtimes and key
 The real IGW report-envelope validator receives synthetic JSON at a fixed clock. Accepted reports must retain bounded freshness and stable normalization. No Alexa endpoint, gateway request, account lookup or device action is invoked.
 
 [RC-only fuzzing policy, local reproduction and failure handling](docs/fuzzing.md).
+
+Source release artifacts, installation checks and acceptance limits are documented in
+[release packaging](docs/release-packaging.md) and [the release strategy](RELEASING.md).

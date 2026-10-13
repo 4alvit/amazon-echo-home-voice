@@ -8,7 +8,7 @@ This replaces the previous validation-only operating policy with explicit beta, 
 
 The numeric source base lives in `pyproject.toml` (`project.version`). There is no independent runtime version literal to stamp. The exact selectors and archive metadata expectations are in [the release policy](../.release-policy.json). Third-party requirement pins and hashes remain unchanged.
 
-The explicit promotion profile is `promote-bytes`: for base `0.3.0`, beta 7 is tagged `v0.3.0-beta.7`, the source archive uses `0.3.0-beta.7`, and installed Python metadata is `0.3.0b7`. Nightly Python versions use the frozen run/attempt projection described in [version plans](VERSIONING.md). RC 7 is tagged `v0.3.0-rc.7` but already installs as `0.3.0`, so a later approved stable promotion copies the exact accepted RC bytes. The manifest retains the full RC tag and source origin. A source version alone is insufficient to identify the accepted artifact; retain its tag, manifest and checksum.
+The explicit promotion profile is `promote-bytes`: for base `0.3.1`, beta 7 is tagged `v0.3.1-beta.7`, the source archive uses `0.3.1-beta.7`, and installed Python metadata is `0.3.1b7`. Nightly Python versions use the frozen run/attempt projection described in [version plans](VERSIONING.md). RC 7 is tagged `v0.3.1-rc.7` but already installs as `0.3.1`, so a later approved stable promotion copies the exact accepted RC bytes. The manifest retains the full RC tag and source origin. A source version alone is insufficient to identify the accepted artifact; retain its tag, manifest and checksum.
 
 ## Frozen build and receipts
 
@@ -24,7 +24,7 @@ Restore the accepted manifest's `version_plan` into a disposable checkout of its
 
 ```sh
 python3 scripts/version_plan.py sync --plan .release-plan.json
-bash scripts/package-release.sh 0.3.0 beta
+bash scripts/package-release.sh 0.3.1 beta
 python3 scripts/verify_source_install.py release-dist
 python3 scripts/stage_release_assets.py --target package --pattern 'release-dist/*'
 ```

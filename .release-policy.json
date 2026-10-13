@@ -53,6 +53,9 @@
         "ecosystem": "pep440"
       }
     ],
-    "toolkit_revision": "35d84867c34262567801c44a0e4ec9aa5159326e"
+    "toolkit_revision": "5b498755c6357b034be0221f51633bab69e2380e"
+  },
+  "fuzzing": {
+    "toolkit_ref": "5b498755c6357b034be0221f51633bab69e2380e"
   }
 }

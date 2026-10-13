@@ -20,17 +20,30 @@ from pathlib import Path
 from typing import cast
 from urllib.parse import quote
 
-import release as client
-import release_control as rc
-import version_plan
-from release_state import (
-    StateGitHub,
-    begin_publication,
-    read_state,
-    reserve_plan,
-    verify_reservation,
-)
-from version_receipt import verify_declared_artifacts, verify_receipts
+if __package__:
+    from . import release as client
+    from . import release_control as rc
+    from . import version_plan
+    from .release_state import (
+        StateGitHub,
+        begin_publication,
+        read_state,
+        reserve_plan,
+        verify_reservation,
+    )
+    from .version_receipt import verify_declared_artifacts, verify_receipts
+else:
+    import release as client
+    import release_control as rc
+    import version_plan
+    from release_state import (
+        StateGitHub,
+        begin_publication,
+        read_state,
+        reserve_plan,
+        verify_reservation,
+    )
+    from version_receipt import verify_declared_artifacts, verify_receipts
 
 PLAN = Path(".release-plan.json")
 MAX_TOOLCHAIN_DIAGNOSTICS = 100
@@ -231,7 +244,12 @@ def event_inputs() -> dict[str, object]:
     event = rc.parse_json(
         Path(os.environ["GITHUB_EVENT_PATH"]).read_bytes(), "workflow event"
     )
-    return cast(dict[str, object], cast(dict[str, object], event).get("inputs") or {})
+    rc.require(isinstance(event, dict), "Workflow event must be a JSON object")
+    inputs = cast(dict[str, object], event).get("inputs")
+    if inputs is None:
+        return {}
+    rc.require(isinstance(inputs, dict), "Workflow inputs must be a JSON object")
+    return cast(dict[str, object], inputs)
 
 
 # Keep integrity checks and mismatch accumulation together at the trust boundary.
@@ -561,6 +579,57 @@ def prepare(args: argparse.Namespace) -> dict[str, object]:
     }
 
 
+def verify_candidate_fuzz_report(
+    stage: Path, policy: dict[str, object], plan: dict[str, object],
+    run: dict[str, object], repository: str,
+) -> None:
+    """Require source-bound mutation evidence before checking an RC's receipts."""
+    if "fuzzing" not in policy or plan["channel"] != "rc":
+        return
+    if __package__:
+        from .release_fuzz import verify_report
+    else:
+        from release_fuzz import verify_report
+
+    verify_report(stage, Path.cwd(), repository, cast(str, plan["source_sha"]),
+                  cast(int, run["id"]), cast(int, run["run_attempt"]))
+
+
+def candidate_fuzz_receipts(
+    policy: dict[str, object], channel: str, receipts: list[dict[str, object]],
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    """Separate validation evidence only for an opted-in RC."""
+    if "fuzzing" not in policy or channel != "rc":
+        return receipts, []
+    if __package__:
+        from .release_fuzz import split_receipts
+    else:
+        from release_fuzz import split_receipts
+
+    return split_receipts(receipts)
+
+
+def fuzz_manifest_fields(
+    policy: dict[str, object], channel: str,
+    validation_receipts: list[dict[str, object]],
+) -> dict[str, object]:
+    """Record the selected fuzz policy and authenticated validation receipts."""
+    if "fuzzing" not in policy:
+        return {}
+    if __package__:
+        from .release_fuzz import profile
+    else:
+        from release_fuzz import profile
+
+    return {
+        "fuzzing_profile": profile(policy, channel),
+        "validation_receipts": [
+            {"name": value["name"], "sha256": value["sha256"]}
+            for value in validation_receipts
+        ],
+    }
+
+
 # Keep the immutable evidence and final public mutation in the same operation.
 # pylint: disable-next=too-many-locals
 def publish_versioned(args: argparse.Namespace) -> dict[str, object]:
@@ -599,17 +668,9 @@ def publish_versioned(args: argparse.Namespace) -> dict[str, object]:
     with tempfile.TemporaryDirectory(prefix="release-versioned-") as temp:
         stage = Path(temp)
         assets = rc.stage_assets(Path(args.assets), stage)
-        if "fuzzing" in policy and channel == "rc":
-            from release_fuzz import verify_report
-
-            verify_report(stage, Path.cwd(), gh.repo, cast(str, plan["source_sha"]),
-                          cast(int, run["id"]), cast(int, run["run_attempt"]))
+        verify_candidate_fuzz_report(stage, policy, plan, run, gh.repo)
         receipts = verify_receipts(stage, plan, assets, policy)
-        validation_receipts = []
-        if "fuzzing" in policy and channel == "rc":
-            from release_fuzz import split_receipts
-
-            receipts, validation_receipts = split_receipts(receipts)
+        receipts, validation_receipts = candidate_fuzz_receipts(policy, channel, receipts)
         rc.verify_required_signatures(stage, gh.repo, cast(str, plan["source_sha"]))
         if parent:
             verify_final_toolchains(gh, candidate, receipts)
@@ -639,14 +700,7 @@ def publish_versioned(args: argparse.Namespace) -> dict[str, object]:
         selected_profile = rc.validation_profile(policy, channel)
         if selected_profile is not None:
             manifest["validation_profile"] = selected_profile
-        if "fuzzing" in policy:
-            from release_fuzz import profile as fuzz_profile
-
-            manifest["fuzzing_profile"] = fuzz_profile(policy, channel)
-            manifest["validation_receipts"] = [
-                {"name": value["name"], "sha256": value["sha256"]}
-                for value in validation_receipts
-            ]
+        manifest.update(fuzz_manifest_fields(policy, channel, validation_receipts))
         content = rc.json_bytes(manifest)
         (stage / rc.MANIFEST).write_bytes(content)
         # Recheck immediately before the first public release mutation.

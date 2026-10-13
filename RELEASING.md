@@ -141,7 +141,7 @@ Local checks run all commands in `local_checks`; missing toolchains, container
 runtimes or credentials are failures, not successful skips. They help reproduce
 CI but do not create promotion evidence or certify untested physical targets.
 
-
+See [platform packaging and toolchain setup](docs/release-packaging.md) for additional local prerequisites.
 
 ## Maintaining this policy
 
@@ -149,3 +149,7 @@ Changes to the lifecycle, required gates or version/asset mappings go through PR
 review together with the corresponding workflow changes. Update the toolkit
 template and `.release-policy.json`, then regenerate and review this document and
 the runbook. The README links here rather than duplicating the release procedure.
+
+## Release-candidate fuzzing
+
+Every RC must pass bounded, network-isolated fuzz campaigns against the exact candidate source. The release inventory includes the report and its version-plan receipt. PRs, betas, nightlies and stable builds do not run these campaigns; stable qualification verifies the accepted RC evidence. See [the shared fuzzing contract](docs/rc-fuzzing.md) and this project's `.github/fuzz.json` for targets and budgets.

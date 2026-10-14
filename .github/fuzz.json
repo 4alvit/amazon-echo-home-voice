@@ -29,7 +29,25 @@
         "-max_len=4096"
       ],
       "seconds": 60,
-      "corpus": "fuzz/corpus/reports"
+      "corpus": "fuzz/corpus/reports",
+      "instrumentation": [
+        {
+          "module": "amazon_echo_home_voice.gateway",
+          "functions": [
+            "validate_payload",
+            "_fresh_timestamp"
+          ]
+        }
+      ]
     }
+  ],
+  "preflight-paths": [
+    ".github/requirements-fuzz.in",
+    "Dockerfile",
+    "fuzz",
+    "pyproject.toml",
+    "requirements-test.lock",
+    "requirements-webhook.lock",
+    "src"
   ]
 }

@@ -72,6 +72,10 @@ Apply request-size limits, timeouts, and appropriate abuse controls at the trust
 
 ## Create accounts and finish setup
 
+The imported realm explicitly selects Argon2 password hashing with five iterations. The pinned non-FIPS Keycloak build uses Argon2id, 7168 KiB of memory, parallelism one and a fresh random salt per password. The real-provider smoke test checks stored metadata and distinct salts/hashes for two synthetic accounts with the same password. This template does not support switching Keycloak into FIPS mode without a separately reviewed password policy.
+
+For an existing realm, startup import does not update this policy. After a backup, review **Authentication → Policies → Password policy** through the private administrative route; select Hashing algorithm `argon2` and Hashing iterations `5`, retaining the existing length and username restrictions. Keycloak rehashes existing credentials on successful login when their policy differs; resetting a password also applies the new policy. This document does not claim already deployed accounts have been migrated. See the [Keycloak password policy documentation](https://www.keycloak.org/docs/26.7.0/server_admin/index.html#_password-policies) and [pinned Argon2 parameters](https://github.com/keycloak/keycloak/blob/26.7.3/crypto/default/src/main/java/org/keycloak/crypto/hash/Argon2Parameters.java).
+
 The imported realm is named `home-energy`. Registration, password-reset email, password grants, implicit grants, service accounts, and unrestricted cross-client scopes are disabled. No users, demo passwords, or SMTP credentials are imported.
 
 Through the private Keycloak administrative interface:

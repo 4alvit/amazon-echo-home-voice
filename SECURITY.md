@@ -13,3 +13,7 @@ Security fixes target the current default branch and the latest maintained relea
 Treat Alexa requests, browser sessions, OAuth provider responses and IGW payloads as untrusted. Verify Alexa signatures before selecting an account. Multi-household identity must come from validated OAuth claims; never fall back to a personal gateway. Public IGW destinations must retain DNS/IP restrictions, hostname verification and redirect rejection. Encrypt stored household connection credentials and keep the encryption key separate from database backups. Personal mode and deployment templates have different exposure assumptions; follow the account-linking guide.
 
 Use synthetic data for testing. Never attach live tokens, private keys, database exports or household telemetry to public CI artifacts. Report a suspected credential exposure privately and revoke the credential through its issuer. See [CONTRIBUTING.md](CONTRIBUTING.md) for validation and [the evidence index](docs/openssf-evidence.md) for assessment limits.
+
+## Remediation and credit
+
+Assess impact and affected versions, reproduce with synthetic data, implement a fix and regression test, and coordinate disclosure with the reporter. Address publicly known vulnerabilities within 60 days and critical issues as quickly as practical. If a fix needs longer, publish available mitigations and keep the reporter informed. Credit vulnerability reporters in the advisory or release notes unless they request anonymity; do not publish identifying details without agreement.

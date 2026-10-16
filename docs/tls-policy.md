@@ -54,3 +54,38 @@ requires every product client to reject it before application bytes. This is
 native-provider rejection evidence, not a successful EC192 handshake or a
 claim that the post-handshake guard ran. All supported fixture chains retain
 the successful low-strength oracle requirement; no cases are skipped.
+
+## Complete standalone report configuration
+
+The supported standalone `energy-voice` mode fetches and validates real gateway
+reports and prints their speech text/status. It is also useful independently of
+an Echo device. This configuration does not start the webhook, Lambda, OAuth,
+portal, Worker relay or Keycloak components, so it has no inbound listener or
+separate cloud transport to assess.
+
+Install the core package with its locked `cryptography` dependency and use the
+CPython 3.12/OpenSSL runtime described above. Select personal mode and an HTTPS
+gateway; supply the dedicated read credential through the environment/secret
+manager as shown in the README. Run only the CLI in this configuration:
+
+```sh
+export ENERGY_VOICE_MODE=personal
+export IGW_URL='https://gateway.example.com/v1/energy'
+# Supply IGW_READ_TOKEN privately; do not paste it into command history.
+energy-voice status
+```
+
+Do not set HTTP(S)/ALL proxy variables or replace the verified CA configuration
+with an unassessed trust store. All active application cryptography in this
+configuration is the owned HTTPS client: TLS 1.2+ with ephemeral key exchange,
+verified hostname/chain and the exact key checks stated above. Unsupported
+algorithms and runtimes fail closed before report data or credentials are sent.
+Plain HTTP personal gateways remain a separate trusted-LAN compatibility mode
+without transport confidentiality; use HTTPS for the assessed configuration.
+
+The broader project's licensing, source, tests and vulnerability review still
+include the optional voice and multi-household components. This concrete CLI
+configuration supports the cryptographic self-assessment; it is not a claim
+that uninspected AWS, Cloudflare, reverse-proxy or Keycloak deployments meet it.
+Actual voice/cloud deployment requires the documented provider-specific checks
+and hardware acceptance independently.

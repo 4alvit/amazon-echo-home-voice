@@ -29,7 +29,7 @@ For a bug fix, add a regression test that fails before the fix and passes afterw
 
 Keep pull requests focused and explain the problem, resulting behavior, compatibility impact and exact validation performed. Update the user-facing documentation when changing configuration, interfaces or operational behavior. Call out tests not run and their prerequisites. Maintainers review changes through GitHub pull requests and required CI; automated review is supplemental. Contributions are provided under the repository's [MIT license](LICENSE); a contributor must have the right to submit the work.
 
-This is a validation-only repository: `.release-policy.json` does not publish synthetic application releases. Record user-visible and security changes in a release description when publishing a source release.
+Published releases identify the application source and verified assets; see [RELEASING.md](RELEASING.md) and [versioning](docs/VERSIONING.md). Record user-visible and security changes, affected versions and upgrade actions in each release.
 
 ## Source and interfaces
 
@@ -51,3 +51,9 @@ then run `python3 scripts/security_check.py`. The required quality gate runs the
 same Ruff and Bandit checks. Scanner failures, empty/incomplete reports and
 findings fail the gate. Any narrowly scoped exception must have an explanatory
 source comment and a reviewer must verify that it is not an exploitable finding.
+
+## Coding standards and community
+
+Python follows PEP 8 and explicit error handling. Go follows `gofmt` and `go vet` where applicable. JavaScript uses the existing module format, explicit bounds and the repository's lint/test conventions. Shell uses quoted expansions and `set -euo pipefail` for Bash entry points. Preserve third-party notices and the supported runtime versions. These are written standards; not every style rule is automatically enforced.
+
+See [governance](GOVERNANCE.md), the [Code of Conduct](CODE_OF_CONDUCT.md), [roadmap](ROADMAP.md) and [quality limits](docs/quality.md).

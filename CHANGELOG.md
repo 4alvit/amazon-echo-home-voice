@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Document project governance, confidential conduct reporting, maintenance continuity limits and reviewed OpenSSF evidence.
+- Document the complete standalone HTTPS report configuration and distinguish its verified transport from separately administered voice/cloud deployments.
+
 ## [0.3.2] - 2026-10-14
 
 ### Changed

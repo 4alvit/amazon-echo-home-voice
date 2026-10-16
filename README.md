@@ -1,5 +1,7 @@
 # Home Energy for Amazon Echo
 
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15559/badge)](https://www.bestpractices.dev/projects/15559)
+
 [![Fuzzing: RC only](https://img.shields.io/badge/Fuzzing-RC%20only-blue)](docs/fuzzing.md)
 
 A read-only **Alexa custom skill** for battery charge, current solar power, solar energy today, alarms, and system status. It reads centrally formatted English reports from `inverter-gateway` (IGW). Home Assistant is not required.
@@ -380,3 +382,7 @@ The real IGW report-envelope validator receives synthetic JSON at a fixed clock.
 
 Source release artifacts, installation checks and acceptance limits are documented in
 [release packaging](docs/release-packaging.md) and [the release strategy](RELEASING.md).
+
+## Community and security evidence
+
+See [contributing](CONTRIBUTING.md), [governance](GOVERNANCE.md), the [Code of Conduct](CODE_OF_CONDUCT.md), [roadmap](ROADMAP.md) and [OpenSSF evidence](docs/openssf-evidence.md). The evidence index distinguishes supported security profiles, actual test results and remaining Silver requirements.

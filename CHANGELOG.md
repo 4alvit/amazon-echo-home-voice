@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Make the optional Keycloak realm’s iterated Argon2 policy explicit and verify stored password metadata in the disposable identity-provider integration test. Existing realms require the documented administrative policy update.
+
 - Document project governance, confidential conduct reporting, maintenance continuity limits and reviewed OpenSSF evidence.
 - Document the complete standalone HTTPS report configuration and distinguish its verified transport from separately administered voice/cloud deployments.
 

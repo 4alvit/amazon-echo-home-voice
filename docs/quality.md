@@ -15,3 +15,5 @@ The primary maintainer has confirmed familiarity with least privilege, secure de
 No complete accessibility or internationalization audit, complete branch coverage, full-scope 80% statement-coverage measurement, mandatory DCO, independent penetration test or independent two-person maintenance arrangement is claimed. Practical warnings and security analysis run in CI; a maximally strict warning profile and uniform automatic formatting across all languages are not established. Signed release metadata does not by itself prove reproducible builds. Third-party/toolchain limitations must stay visible in any public assessment.
 
 The current public badge record is authoritative for the awarded level. A progress percentage toward Silver is not a Silver award.
+
+The full default-algorithm behavior of every compatible optional cloud, provider and legacy transport has not been independently verified. The supported stronger configuration is not evidence for an unrestricted all-deployment crypto-weaknesses claim.

@@ -155,7 +155,10 @@ def build_realm(values: dict[str, str], redirects: list[str]) -> dict:
         "minimumQuickLoginWaitSeconds": 60,
         "quickLoginCheckMilliSeconds": 1000,
         "maxDeltaTimeSeconds": 43200,
-        "passwordPolicy": "length(14) and notUsername(undefined)",
+        "passwordPolicy": (
+            "length(14) and notUsername(undefined) "
+            "and hashAlgorithm(argon2) and hashIterations(5)"
+        ),
         "accessTokenLifespan": 300,
         "accessCodeLifespan": 60,
         "accessCodeLifespanLogin": 300,

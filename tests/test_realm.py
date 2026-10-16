@@ -52,6 +52,14 @@ class RealmGenerationTests(unittest.TestCase):
         self.assertTrue(realm["revokeRefreshToken"])
         self.assertEqual(realm["refreshTokenMaxReuse"], 0)
 
+    def test_password_policy_uses_explicit_iterated_argon2(self):
+        realm = realm_generator.build_realm(self.config, self.redirects)
+        self.assertEqual(
+            realm["passwordPolicy"],
+            "length(14) and notUsername(undefined) "
+            "and hashAlgorithm(argon2) and hashIterations(5)",
+        )
+
     def test_redirect_allowlist_rejects_unsafe_or_duplicate_entries(self):
         invalid = [
             [], self.redirects * 2, ["http://alexa.example.com/callback"],

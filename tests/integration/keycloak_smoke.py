@@ -287,6 +287,29 @@ def provider():
                     time.sleep(1)
             else:
                 raise RuntimeError("The disposable identity provider did not become ready.")
+            # Inspect only aggregate metadata from disposable synthetic accounts.
+            # Equal input passwords must have distinct salts and stored hashes.
+            password_summary = docker(
+                "exec", db_name, "psql", "-U", "keycloak", "-d", "keycloak", "-Atc",
+                """SELECT count(*),
+                    bool_and(coalesce(
+                        c.credential_data::jsonb->>'algorithm' = 'argon2'
+                        AND c.credential_data::jsonb->>'hashIterations' = '5'
+                        AND c.credential_data::jsonb->'additionalParameters'->'type'->>0 = 'id'
+                        AND c.credential_data::jsonb->'additionalParameters'->'memory'->>0 = '7168'
+                        AND c.credential_data::jsonb->'additionalParameters'->'parallelism'->>0 = '1'
+                        AND octet_length(decode(c.secret_data::jsonb->>'salt', 'base64')) >= 16
+                        AND octet_length(decode(c.secret_data::jsonb->>'value', 'base64')) = 32,
+                        false)),
+                    count(DISTINCT c.secret_data::jsonb->>'salt'),
+                    count(DISTINCT c.secret_data::jsonb->>'value')
+                    FROM credential c
+                    JOIN user_entity u ON u.id = c.user_id
+                    JOIN realm r ON r.id = u.realm_id
+                    WHERE r.name = 'home-energy' AND c.type = 'password';""",
+            )
+            if password_summary != "2|t|2|2":
+                raise RuntimeError("Synthetic account password hashing did not meet the policy.")
             config = OAuthConfig(
                 issuer=ISSUER, authorization_url=discovery["authorization_endpoint"],
                 token_url=discovery["token_endpoint"], introspection_url=discovery["introspection_endpoint"],

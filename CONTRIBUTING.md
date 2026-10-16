@@ -57,3 +57,11 @@ source comment and a reviewer must verify that it is not an exploitable finding.
 Python follows PEP 8 and explicit error handling. Go follows `gofmt` and `go vet` where applicable. JavaScript uses the existing module format, explicit bounds and the repository's lint/test conventions. Shell uses quoted expansions and `set -euo pipefail` for Bash entry points. Preserve third-party notices and the supported runtime versions. These are written standards; not every style rule is automatically enforced.
 
 See [governance](GOVERNANCE.md), the [Code of Conduct](CODE_OF_CONDUCT.md), [roadmap](ROADMAP.md) and [quality limits](docs/quality.md).
+
+The maintainer updates the repository front page to link newly recognized project achievements within 48 hours. The OpenSSF image links directly to this project's live assessment and updates with its awarded level. Do not copy another project's achievement.
+
+For JavaScript, use the file's ESM/CommonJS format consistently, two-space indentation, semicolons and strict equality; keep compatibility-oriented upstream styles intact. HCL follows `terraform fmt` and its module variable/output conventions. These supplement PEP 8 for Python, `gofmt`/Effective Go for Go, and quoted expansions in Bash.
+
+## Removing a development installation
+
+Uninstall the Python package with `python3 -m pip uninstall amazon-echo-home-voice` in the environment where it was installed. A dedicated virtual environment can then be removed after deactivation. Preserve private configuration before removing a checkout. For the optional Compose deployment, `docker compose down` stops and removes its containers and network while preserving named database volumes; do not add `--volumes` unless you intentionally want to erase the identity database and have accepted a tested backup. Cloud resources have a separate operator-managed lifecycle described by their deployment guide.

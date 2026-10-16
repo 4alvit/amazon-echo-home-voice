@@ -1,5 +1,9 @@
 # Release-candidate fuzz testing
 
+See the [illustrated RC fuzzing process and verified rollout results](https://github.com/victron-venus/venus-os-ci-toolkit/blob/main/docs/rc-fuzzing-results.md)
+for the shared release flow, evidence requirements and a dated cross-project
+snapshot. The project-specific scope and reproduction guidance below still apply.
+
 ## Scope and assertions
 
 **reports.** The real IGW report-envelope validator receives synthetic JSON at a fixed clock. Accepted reports must retain bounded freshness and stable normalization. No Alexa endpoint, gateway request, account lookup or device action is invoked.

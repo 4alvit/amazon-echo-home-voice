@@ -1,11 +1,19 @@
 # Changelog
 
-## Unreleased
+## [0.3.3] - 2026-10-17
 
-- Make the optional Keycloak realm’s iterated Argon2 policy explicit and verify stored password metadata in the disposable identity-provider integration test. Existing realms require the documented administrative policy update.
+### Changed
 
-- Document project governance, confidential conduct reporting, maintenance continuity limits and reviewed OpenSSF evidence.
-- Document the complete standalone HTTPS report configuration and distinguish its verified transport from separately administered voice/cloud deployments.
+- Make the optional Keycloak realm's iterated Argon2 policy explicit and verify stored password metadata in the disposable identity-provider integration test.
+- Update GitHub Actions dependencies and document standalone HTTPS configuration, reviewed assessment evidence and RC fuzzing process and results.
+
+### Upgrade
+
+Existing Keycloak realms require the documented administrative password-policy update; publishing this package does not modify a running realm. Preserve realm configuration and installation-specific credentials, and retain the previous package for rollback.
+
+### Security
+
+The disposable Keycloak test verifies the configured password-policy metadata. It does not prove migration of passwords in existing realms or acceptance of physical voice devices.
 
 ## [0.3.2] - 2026-10-14
 

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import base64
+import argparse
 import os
 from pathlib import Path
 import secrets
@@ -11,7 +12,11 @@ import sys
 
 
 def main() -> int:
-    directory = Path(__file__).resolve().parent
+    template_directory = Path(__file__).resolve().parent
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output-dir", type=Path, default=template_directory,
+                        help="existing directory for the private .env and private/ directory")
+    directory = parser.parse_args().output_dir.resolve()
     values = {
         "POSTGRES_PASSWORD": secrets.token_urlsafe(48),
         "KC_BOOTSTRAP_ADMIN_USERNAME": "initial-admin-" + secrets.token_hex(6),
@@ -21,7 +26,7 @@ def main() -> int:
         "TENANT_ENCRYPTION_KEY": base64.urlsafe_b64encode(os.urandom(32)).decode("ascii"),
     }
     try:
-        template = (directory / ".env.example").read_text(encoding="utf-8")
+        template = (template_directory / ".env.example").read_text(encoding="utf-8")
         lines = []
         for line in template.splitlines():
             key = line.partition("=")[0]

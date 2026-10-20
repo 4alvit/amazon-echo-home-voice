@@ -1,0 +1,82 @@
+# Opt-in development deployment. Requires Docker Compose >= 2.24.4 (!override).
+name: home-energy-test
+
+x-test-lifecycle: &test-lifecycle
+  profiles: [test]
+  restart: "no"
+  labels:
+    org.home-energy.purpose: development-test
+    org.home-energy.owner: amazon-echo-home-voice
+
+services:
+  postgres:
+    extends:
+      file: ../multi-household/compose.yaml
+      service: postgres
+    <<: *test-lifecycle
+
+  keycloak:
+    extends:
+      file: ../multi-household/compose.yaml
+      service: keycloak
+    <<: *test-lifecycle
+    ports: !override
+      - "127.0.0.1:28085:8080"
+    volumes:
+      - type: bind
+        source: ./private/home-energy-realm.json
+        target: /opt/keycloak/data/import/home-energy-realm.json
+        read_only: true
+        bind:
+          create_host_path: false
+
+  alexa:
+    extends:
+      file: ../multi-household/compose.yaml
+      service: alexa
+    <<: *test-lifecycle
+    image: home-energy-test:local
+    ports: !override
+      - "127.0.0.1:28091:8080"
+    volumes:
+      - type: bind
+        source: ./private/data
+        target: /data
+        bind:
+          create_host_path: false
+
+  portal:
+    extends:
+      file: ../multi-household/compose.yaml
+      service: portal
+    <<: *test-lifecycle
+    image: home-energy-test:local
+    ports: !override
+      - "127.0.0.1:28092:8080"
+    volumes:
+      - type: bind
+        source: ./private/data
+        target: /data
+        bind:
+          create_host_path: false
+
+  initialize:
+    extends:
+      file: ../multi-household/compose.yaml
+      service: initialize
+    profiles: [setup]
+    restart: "no"
+    image: home-energy-test:local
+    volumes:
+      - type: bind
+        source: ./private/data
+        target: /data
+        bind:
+          create_host_path: false
+
+networks:
+  identity:
+    internal: true
+
+volumes:
+  identity-database:

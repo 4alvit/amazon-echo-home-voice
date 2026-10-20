@@ -64,6 +64,14 @@ See the [anonymized verification summary](docs/validation-2026-09-12.md) for com
 
 For a private installation on the home k3s cluster, see [deployment instructions](deploy/README.md) and [the ClusterIP workload](deploy/k3s.yaml). That path keeps the skill disabled until a real skill ID is configured.
 
+If the same server also runs Google Cast energy reports, the optional
+[unified Alexa/Cast deployment](deploy/unified/README.md) packages both existing
+applications in one container, with separate listeners and configuration.
+The guide covers pinned sources, silent staging, health checks and rollback.
+For development account-linking work, use the
+[explicitly started test deployment](deploy/test/README.md) and stop it after
+the session; existing populated deployments require a deliberate migration.
+
 You can install the backend while developer registration is unfinished by leaving `ASK_SKILL_ID` empty. Health then reports `skill_configured: false`, and every Alexa request is rejected until a real skill ID is supplied.
 
 **Installing the backend does not create or enable an Alexa skill.** The Developer Console must contain a custom skill with this model and the installed endpoint; Development testing must be enabled. A physical Echo test is a separate step. No cloud accounts or credentials are included. The code supports personal and multi-household deployments. It has not been publicly certified by Amazon.

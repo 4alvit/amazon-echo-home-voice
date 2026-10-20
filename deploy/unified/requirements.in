@@ -1,0 +1,4 @@
+# Keep the existing Alexa dependency constraints. Resolve both apps together.
+-r ../../requirements-webhook.in
+Pillow==12.3.0
+PyChromecast==14.0.10

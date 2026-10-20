@@ -25,7 +25,10 @@ if [[ "$mode" == unified || "$mode" == all ]]; then
   # Exclude ignored private deployment files even when this mode runs locally.
   git ls-files --cached --others --exclude-standard -z -- \
     tests scripts deploy/multi-household deploy/test deploy/unified \
-    | tar --null -T - -cf - | tar -xf - -C "$unified_fixtures"
+    > "$unified_fixtures/source-files"
+  tar --null -T "$unified_fixtures/source-files" -cf "$unified_fixtures/sources.tar"
+  tar -xf "$unified_fixtures/sources.tar" -C "$unified_fixtures"
+  rm -- "$unified_fixtures/source-files" "$unified_fixtures/sources.tar"
   # The built Linux image exercises both dependency sets and subreaper semantics.
   # Only source fixtures are mounted; no Docker socket, credentials or LAN access.
   docker run --rm --network none --read-only \

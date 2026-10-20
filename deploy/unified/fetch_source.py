@@ -16,7 +16,8 @@ def main():
     expected_url = "https://codeload.github.com/4alvit/google-home-voice-stats/tar.gz/" + revision
     if len(revision) != 40 or pin["archive_url"] != expected_url:
         raise ValueError("Invalid source pin")
-    with urllib.request.urlopen(expected_url, timeout=60) as response:
+    # The URL is the exact reviewed HTTPS archive origin; its content is hashed below.
+    with urllib.request.urlopen(expected_url, timeout=60) as response:  # nosec B310
         archive = response.read(8 * 1024 * 1024 + 1)
     if len(archive) > 8 * 1024 * 1024 or hashlib.sha256(archive).hexdigest() != pin["sha256"]:
         raise ValueError("Cast archive checksum mismatch")

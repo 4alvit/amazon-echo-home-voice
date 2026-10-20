@@ -7,7 +7,8 @@ from pathlib import Path
 import time
 
 
-def healthy(path=Path("/tmp/unified-status.json")):
+# This fixed path is inside the private container tmpfs, not a shared host directory.
+def healthy(path=Path("/tmp/unified-status.json")):  # nosec B108
     try:
         data = json.loads(path.read_text())
         age = time.monotonic() - data["updated"]

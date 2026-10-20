@@ -12,7 +12,8 @@ from pathlib import Path
 import signal
 import socket
 import stat
-import subprocess
+# Child argv is constructed below from fixed Python module entry points; no shell is used.
+import subprocess  # nosec B404
 import sys
 import time
 import urllib.error
@@ -32,7 +33,7 @@ CAST_KEYS = COMMON_KEYS | {
 }
 BASE_ENV = {"PATH": "/usr/local/bin:/usr/bin:/bin", "LANG": "C.UTF-8",
             "PYTHONUNBUFFERED": "1", "PYTHONDONTWRITEBYTECODE": "1",
-            "HOME": "/tmp", "TMPDIR": "/tmp"}
+            "HOME": "/tmp", "TMPDIR": "/tmp"}  # nosec B108 -- private container tmpfs
 
 
 class ConfigurationError(ValueError):
@@ -115,7 +116,7 @@ def child_specs(env: dict[str, str]) -> list[Child]:
         command = (sys.executable, "-m", "gunicorn", "--config",
                    "python:amazon_echo_home_voice.gunicorn_config", "--bind", f"{host}:{port}",
                    "--workers", "2", "--threads", "4", "--timeout", "10",
-                   "--graceful-timeout", "8", "--worker-tmp-dir", "/tmp",
+                   "--graceful-timeout", "8", "--worker-tmp-dir", "/tmp",  # nosec B108 -- private tmpfs
                    "amazon_echo_home_voice.webhook:application")
         specs.append(Child("alexa", command, BASE_ENV | config, host, port, "/health"))
     if flag(env, "UNIFIED_ENABLE_CAST"):
@@ -259,7 +260,8 @@ def run(specs: list[Child], status_path: Path, startup_timeout: float = 90,
         for spec in specs:
             if stopped:
                 return 0
-            processes.append(subprocess.Popen(spec.argv, env=spec.environment, start_new_session=True))
+            # Fixed module argv and separately allowlisted environment, with no shell.
+            processes.append(subprocess.Popen(spec.argv, env=spec.environment, start_new_session=True))  # nosec B603
         deadline = time.monotonic() + startup_timeout
         ready_once, unhealthy_since = False, None
         while not stopped:
@@ -300,7 +302,8 @@ def run(specs: list[Child], status_path: Path, startup_timeout: float = 90,
 def main() -> int:
     try:
         specs = child_specs(dict(os.environ))
-        return run(specs, Path("/tmp/unified-status.json"),
+        # Runtime status belongs to the private container tmpfs.
+        return run(specs, Path("/tmp/unified-status.json"),  # nosec B108
                    integer(os.environ, "UNIFIED_STARTUP_TIMEOUT", 90, 5, 300),
                    integer(os.environ, "UNIFIED_SHUTDOWN_TIMEOUT", 12, 1, 20),
                    integer(os.environ, "UNIFIED_FAILURE_GRACE", 60, 15, 600),

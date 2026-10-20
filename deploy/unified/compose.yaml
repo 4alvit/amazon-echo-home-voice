@@ -1,0 +1,40 @@
+name: igw-voice
+services:
+  gateway:
+    image: ${UNIFIED_IMAGE:?Set a reviewed image tag or digest}
+    # Build separately from the repository root, not from this runtime directory.
+    restart: unless-stopped
+    network_mode: host
+    user: "10001:10001"
+    environment:
+      UNIFIED_ENABLE_ALEXA: ${UNIFIED_ENABLE_ALEXA:-true}
+      UNIFIED_ENABLE_CAST: ${UNIFIED_ENABLE_CAST:-true}
+      UNIFIED_ALEXA_BIND: "127.0.0.1"
+      UNIFIED_ALEXA_PORT: ${UNIFIED_ALEXA_PORT:-8091}
+      UNIFIED_ALEXA_ENV_FILE: /run/voice-config/alexa.env
+      UNIFIED_CAST_ENV_FILE: /run/voice-config/cast.env
+      UNIFIED_STARTUP_TIMEOUT: ${UNIFIED_STARTUP_TIMEOUT:-90}
+      UNIFIED_PROBE_TIMEOUT: ${UNIFIED_PROBE_TIMEOUT:-3}
+      UNIFIED_FAILURE_GRACE: ${UNIFIED_FAILURE_GRACE:-60}
+    volumes:
+      - type: bind
+        source: ${UNIFIED_CONFIG_DIR:?Set the private configuration directory}
+        target: /run/voice-config
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${UNIFIED_SPEECH_CA_DIR:?Set the existing speech CA directory}
+        target: /run/speech-ca
+        read_only: true
+        bind:
+          create_host_path: false
+    read_only: true
+    tmpfs:
+      - /tmp:size=192m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 768m
+    cpu_shares: 256
+    pids_limit: 128
+    stop_grace_period: 45s

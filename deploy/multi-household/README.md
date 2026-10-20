@@ -2,6 +2,11 @@
 
 This separate Compose project adds a Keycloak identity provider, PostgreSQL, the Alexa webhook, and a connection portal. It requires an ordinary Linux server with Docker Compose, persistent storage, and a trusted TLS reverse proxy. Run it on a server or capable NAS, not on Cerbo GX. It does not provision cloud services, enable a paid plan, or modify an existing personal deployment.
 
+This template is persistent and uses automatic restart policies. For an explicitly
+started development deployment with isolated ports/data and no automatic restart,
+use the [opt-in test deployment](../test/README.md). That option does not alter or
+stop existing installations.
+
 Keycloak and PostgreSQL are self-hosted open-source software. Their software does not require a paid account; the operator supplies hosting, storage, certificates, and an existing domain. Images are pinned by version and verified multi-platform index digest to [Keycloak 26.7.3](https://www.keycloak.org/downloads) and [PostgreSQL 17.11](https://www.postgresql.org/docs/release/17.11/). Review upstream security releases before a new installation; update versions and digests together after testing.
 
 Read the [account-linking and household guide](../../docs/account-linking.md) before starting. This scaffold is for one server. The household database is SQLite and must be on local storage shared by the two application containers; this is not a stateless Lambda or multi-server deployment.

@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.3.4] - 2026-10-20
+
+### Added
+
+- Provide an optional personal-mode image that runs the Alexa webhook and the pinned Cast report service under one supervisor, with separate credentials, bounded startup and shutdown, and shared readiness.
+- Include the unified deployment's source pins, hashed Python dependencies, Compose template, staging procedure and rollback instructions.
+- Add an opt-in multi-household test deployment with isolated loopback ports, explicitly started services and separate private configuration. The configuration helper can write to a selected existing directory without overwriting an existing environment file.
+
+### Changed
+
+- Exercise unified-service startup, peer cleanup, readiness expiry and Linux child reaping in the existing validation pipeline.
+- Refresh GitHub Actions and security workflow dependencies while retaining the required Python, container, worker and Terraform checks.
+
+### Upgrade
+
+The unified image is optional and supports personal Alexa mode only. Preserve existing standalone Compose files, image digests, listener addresses and private configuration before staging it on unused ports. Stop the old listeners before taking over their original endpoints, and retain their images and configuration for rollback. Keep the separate multi-household installation and its identity database unchanged.
+
+This release contains installable source and deployment templates, not a prebuilt image or an automatic deployment. Follow `deploy/unified/README.md` for image verification, staging and explicit cutover. The separate test deployment requires Docker Compose 2.24.4 or newer.
+
+### Security
+
+The unified supervisor separates Alexa and Cast environment variables, rejects unsupported modes and broad listener bindings, and keeps the Cast endpoint on an explicit private LAN address. Its Cast source archive and Python dependencies are pinned and verified during the build. Existing request authentication remains required.
+
+Automated process, dependency and configuration checks do not prove a real Amazon OAuth exchange, signed voice request, Cast playback or target-host latency. Complete the documented deployment-specific acceptance checks before replacing a working installation; never put credentials or identity database backups in the source archive.
+
 ## [0.3.3] - 2026-10-17
 
 ### Changed

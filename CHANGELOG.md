@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.5]
+
+### Security
+
+Update the webhook and unified-service trust bundle to certifi 2026.10.19, removing the compromised emSign roots described in GHSA-6q48-6c7w-9gw2. The webhook extra also requires the patched minimum version.
+
+### Upgrade
+
+Use the existing package or container update procedure and preserve local configuration. Existing release artifacts remain available for rollback; publication does not deploy services.
+
 ## [0.3.4] - 2026-10-20
 
 ### Added

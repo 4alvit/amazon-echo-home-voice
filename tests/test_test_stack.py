@@ -107,6 +107,19 @@ class ComposeRenderTests(unittest.TestCase):
         return subprocess.run(command, env=clean_env, text=True, capture_output=True,
                               check=True, timeout=20).stdout
 
+    def test_private_image_overrides_survive_compose_extends(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            env = Path(temporary) / ".env"
+            synthetic_environment(env)
+            values = {"KEYCLOAK_IMAGE": "registry.example.invalid/keycloak-security@sha256:" + "a" * 64,
+                      "POSTGRES_IMAGE": "registry.example.invalid/postgres-security@sha256:" + "b" * 64}
+            with env.open("a") as output:
+                for key, value in values.items():
+                    output.write(key + "=" + value + "\n")
+            document = json.loads(self.render(env, "--profile", "*", "config", "--format", "json"))
+            self.assertEqual(document["services"]["keycloak"]["image"], values["KEYCLOAK_IMAGE"])
+            self.assertEqual(document["services"]["postgres"]["image"], values["POSTGRES_IMAGE"])
+
     def test_rendered_profiles_commands_ports_paths_and_persistence(self):
         with tempfile.TemporaryDirectory() as temporary:
             env = Path(temporary) / ".env"
@@ -120,7 +133,7 @@ class ComposeRenderTests(unittest.TestCase):
                 self.assertEqual(service["profiles"], ["setup"] if name == "initialize" else ["test"])
                 self.assertNotIn("container_name", service)
             self.assertTrue(services["postgres"]["image"].startswith("postgres:17.11-bookworm@sha256:"))
-            self.assertTrue(services["keycloak"]["image"].startswith("quay.io/keycloak/keycloak:26.7.3@sha256:"))
+            self.assertTrue(services["keycloak"]["image"].startswith("quay.io/keycloak/keycloak:26.8.1@sha256:"))
             self.assertEqual(services["keycloak"]["command"], ["start", "--import-realm"])
             self.assertEqual(services["initialize"]["command"], ["energy-voice-admin", "init"])
             self.assertEqual(services["portal"]["command"][-1], "amazon_echo_home_voice.portal:application")

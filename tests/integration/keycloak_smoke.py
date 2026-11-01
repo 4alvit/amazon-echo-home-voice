@@ -42,8 +42,11 @@ SPEC.loader.exec_module(GENERATOR)
 ISSUER = "https://auth.example.test/realms/home-energy"
 ALEXA_REDIRECT = "https://alexa.example.test/exact-callback"
 PORTAL_REDIRECT = "https://connect.example.test/callback"
-KEYCLOAK_IMAGE = "quay.io/keycloak/keycloak:26.7.3@sha256:ff4257d0d64efbe99ed1ddfaf07765cc3c36dc7518bf8324d41961327f441c54"
-POSTGRES_IMAGE = "postgres:17.11-bookworm@sha256:051f7b7b3abdd564d5d1bd1e8c4b9c1b6e77087d1dd22020ede611c096a272e0"
+KEYCLOAK_IMAGE = os.environ.get("KEYCLOAK_IMAGE", "quay.io/keycloak/keycloak:26.8.1@sha256:3f3c5f8e03c614774b4bd9173b88391fefa4153bfc010d8012d59ad825377332")
+STARTUP_TIMEOUT = int(os.environ.get("KEYCLOAK_STARTUP_TIMEOUT", "300"))
+if not 30 <= STARTUP_TIMEOUT <= 900:
+    raise ValueError("KEYCLOAK_STARTUP_TIMEOUT must be between 30 and 900 seconds")
+POSTGRES_IMAGE = os.environ.get("POSTGRES_IMAGE", "postgres:17.11-bookworm@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5")
 
 
 class AuthorizationRejected(Exception):
@@ -158,6 +161,8 @@ def provider():
     private_directory.mkdir(mode=0o700, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="energy-oauth-smoke-", dir=private_directory) as temporary:
         directory = Path(temporary)
+        # NAS inherited ACLs may broaden mkdir mode; enforce the private fixture boundary.
+        directory.chmod(0o700)
         password = secrets.token_urlsafe(36)
         values = {
             "OAUTH_ISSUER": ISSUER,
@@ -275,7 +280,7 @@ def provider():
             def opener(*handlers):
                 return build_opener(ProxyHandler({}), TestTLS(), NoRedirects(), *handlers)
 
-            readiness_deadline = time.monotonic() + 300
+            readiness_deadline = time.monotonic() + STARTUP_TIMEOUT
             while time.monotonic() < readiness_deadline:
                 try:
                     with opener().open(ISSUER + "/.well-known/openid-configuration", timeout=2) as response:

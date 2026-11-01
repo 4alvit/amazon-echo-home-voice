@@ -80,6 +80,19 @@ class IdentityImagesTests(unittest.TestCase):
                 self.assertEqual(MODULE.main(), 1)
                 run.assert_not_called()
 
+    def test_configuration_overrides_are_rejected_before_docker(self):
+        for command in ("up", "pull", "stop"):
+            for flag in ("--file", "--file=other.yml", "-fother.yml", "-df",
+                         "--env-file=other.env", "--project-directory=/other",
+                         "--project-name=other", "-pother", "--profile=other",
+                         "--compatibility", "--all-resources"):
+                with self.subTest(command=command, flag=flag), \
+                     patch("sys.argv", ["identity_compose.py", "--", command, flag]), \
+                     patch.object(MODULE, "capture", side_effect=AssertionError("Preflight ran")), \
+                     patch.object(MODULE.subprocess, "run") as run, patch("sys.stderr"):
+                    self.assertEqual(MODULE.main(), 1)
+                    run.assert_not_called()
+
     def test_new_marker_is_private_despite_inherited_modes(self):
         mkdir = Path.mkdir
         real_open = os.open

@@ -5,7 +5,8 @@ import json
 import os
 from pathlib import Path
 import re
-import subprocess
+# Local operator CLI: the executable is fixed to Docker and no shell is used.
+import subprocess  # nosec B404
 import sys
 
 # Digests of the reviewed linux/amd64 security builds, not the upstream defaults.
@@ -39,11 +40,29 @@ def validate_images(configured, current, required=False, rollback=False):
 
 
 def capture(command, directory):
-    result = subprocess.run(command, cwd=directory, capture_output=True, text=True)
+    # Only internally constructed Docker config/inspect commands reach this helper.
+    result = subprocess.run(command, cwd=directory, capture_output=True, text=True)  # nosec B603
     if result.returncode:
         # Compose config and diagnostics can contain secrets. Do not echo them.
         raise RuntimeError("Identity preflight command failed: " + command[0])
     return result.stdout
+
+
+def validate_command(command):
+    if command and command[0] not in {"up", "pull", "stop"}:
+        raise ValueError("Only lifecycle subcommands are supported")
+    # Compose accepts persistent flags after the subcommand too. They must not
+    # change the project or files after this operator checks its configuration.
+    overrides = {"--file", "--env-file", "--project-directory", "--project-name",
+                 "--profile", "--compatibility", "--all-resources"}
+    for argument in command[1:]:
+        option = argument.split("=", 1)[0]
+        short_override = option.startswith("-") and not option.startswith("--") and any(
+            flag in option[1:] for flag in ("f", "p"))
+        if option in overrides or short_override:
+            raise ValueError("Compose configuration overrides cannot bypass the checked project")
+        if command[0] == "up" and option == "--no-recreate":
+            raise ValueError("Image updates must be allowed to recreate containers")
 
 
 def ensure_marker_directory(directory):
@@ -73,12 +92,10 @@ def main():
                "--env-file", str(directory / ".env"), "-f", str(directory / "compose.yaml")]
     command = args.command[1:] if args.command[:1] == ["--"] else args.command
     try:
-        if command and command[0] not in {"up", "pull", "stop"}:
-            raise ValueError("Only lifecycle subcommands are supported")
-        if command and command[0] == "up" and any(arg.split("=", 1)[0] == "--no-recreate" for arg in command[1:]):
-            raise ValueError("Image updates must be allowed to recreate containers")
+        validate_command(command)
         if command and command[0] == "stop":
-            return subprocess.run(compose + command, cwd=directory).returncode
+            # Explicit local operator action, checked project/argv, no shell parsing.
+            return subprocess.run(compose + command, cwd=directory).returncode  # nosec B603
         config = json.loads(capture(compose + ["config", "--format", "json"], directory))
         configured = {name: config["services"][name]["image"] for name in HARDENED}
         current = {}
@@ -101,7 +118,8 @@ def main():
                 os.fchmod(output.fileno(), 0o600)
                 json.dump({"version": 1, "require_hardened": True}, output)
                 output.write("\n")
-        return subprocess.run(compose + command, cwd=directory).returncode
+        # Explicit local operator action after image and project validation; no shell.
+        return subprocess.run(compose + command, cwd=directory).returncode  # nosec B603
     except (KeyError, ValueError, RuntimeError, OSError):
         print("Identity preflight failed. Check private image overrides, fixed digests, Docker and marker; no Compose action ran.", file=sys.stderr)
         return 1

@@ -19,6 +19,9 @@ when a hardened container or the private recovery marker exists. Preserve
 `private/identity-security-images.json` with configuration backups; pass
 `--require-hardened` on recovery even if that marker is unavailable. Do not bypass
 this guard with a direct `docker compose up` on the maintained installation.
+Select an installation with the wrapper's `--directory` option. Compose options
+that replace its checked files, environment or project are rejected, including
+when supplied after the lifecycle subcommand.
 
 Read the [account-linking and household guide](../../docs/account-linking.md) before starting. This scaffold is for one server. The household database is SQLite and must be on local storage shared by the two application containers; this is not a stateless Lambda or multi-server deployment.
 

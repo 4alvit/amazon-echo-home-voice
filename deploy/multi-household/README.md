@@ -7,7 +7,21 @@ started development deployment with isolated ports/data and no automatic restart
 use the [opt-in test deployment](../test/README.md). That option does not alter or
 stop existing installations.
 
-Keycloak and PostgreSQL are self-hosted open-source software. Their software does not require a paid account; the operator supplies hosting, storage, certificates, and an existing domain. Images are pinned by version and verified multi-platform index digest to [Keycloak 26.7.3](https://www.keycloak.org/downloads) and [PostgreSQL 17.11](https://www.postgresql.org/docs/release/17.11/). Review upstream security releases before a new installation; update versions and digests together after testing.
+Keycloak and PostgreSQL are self-hosted open-source software. Their software does not require a paid account; the operator supplies hosting, storage, certificates, and an existing domain. Images are pinned by version and verified multi-platform index digest to [Keycloak 26.8.1](https://www.keycloak.org/downloads) and [PostgreSQL 17.11](https://www.postgresql.org/docs/release/17.11/). Review upstream security releases before a new installation; update versions and digests together after testing.
+
+For the maintained NAS, use the reviewed [security image builds](images/README.md)
+and keep both `KEYCLOAK_IMAGE` and `POSTGRES_IMAGE` in the private `.env`, including
+their exact SHA-256 digests. The generic upstream defaults above do not include
+those dependency fixes. Run `python3 identity_compose.py --require-hardened` for
+a read-only preflight and `python3 identity_compose.py --require-hardened -- up -d
+postgres keycloak` for a scoped deployment. The wrapper rejects lost overrides
+when a hardened container or the private recovery marker exists. Preserve
+`private/identity-security-images.json` with configuration backups; pass
+`--require-hardened` on recovery even if that marker is unavailable. Do not bypass
+this guard with a direct `docker compose up` on the maintained installation.
+Select an installation with the wrapper's `--directory` option. Compose options
+that replace its checked files, environment or project are rejected, including
+when supplied after the lifecycle subcommand.
 
 Read the [account-linking and household guide](../../docs/account-linking.md) before starting. This scaffold is for one server. The household database is SQLite and must be on local storage shared by the two application containers; this is not a stateless Lambda or multi-server deployment.
 
@@ -79,7 +93,7 @@ Apply request-size limits, timeouts, and appropriate abuse controls at the trust
 
 The imported realm explicitly selects Argon2 password hashing with five iterations. The pinned non-FIPS Keycloak build uses Argon2id, 7168 KiB of memory, parallelism one and a fresh random salt per password. The real-provider smoke test checks stored metadata and distinct salts/hashes for two synthetic accounts with the same password. This template does not support switching Keycloak into FIPS mode without a separately reviewed password policy.
 
-For an existing realm, startup import does not update this policy. After a backup, review **Authentication → Policies → Password policy** through the private administrative route; select Hashing algorithm `argon2` and Hashing iterations `5`, retaining the existing length and username restrictions. Keycloak rehashes existing credentials on successful login when their policy differs; resetting a password also applies the new policy. This document does not claim already deployed accounts have been migrated. See the [Keycloak password policy documentation](https://www.keycloak.org/docs/26.7.0/server_admin/index.html#_password-policies) and [pinned Argon2 parameters](https://github.com/keycloak/keycloak/blob/26.7.3/crypto/default/src/main/java/org/keycloak/crypto/hash/Argon2Parameters.java).
+For an existing realm, startup import does not update this policy. After a backup, review **Authentication → Policies → Password policy** through the private administrative route; select Hashing algorithm `argon2` and Hashing iterations `5`, retaining the existing length and username restrictions. Keycloak rehashes existing credentials on successful login when their policy differs; resetting a password also applies the new policy. This document does not claim already deployed accounts have been migrated. See the [Keycloak password policy documentation](https://www.keycloak.org/docs/26.8.0/server_admin/index.html#_password-policies) and [pinned Argon2 parameters](https://github.com/keycloak/keycloak/blob/26.8.1/crypto/default/src/main/java/org/keycloak/crypto/hash/Argon2Parameters.java).
 
 The imported realm is named `home-energy`. Registration, password-reset email, password grants, implicit grants, service accounts, and unrestricted cross-client scopes are disabled. No users, demo passwords, or SMTP credentials are imported.
 
@@ -114,6 +128,15 @@ From the repository root, run the opt-in real-provider smoke test with Docker, O
 ```bash
 PYTHONPATH=src python3 tests/integration/keycloak_smoke.py
 ```
+
+Set `KEYCLOAK_IMAGE` and `POSTGRES_IMAGE` to the exact candidate references when
+qualifying an upgrade. On a slow NAS, `KEYCLOAK_STARTUP_TIMEOUT=900` allows the
+first Quarkus augmentation and database initialization to finish; the default
+is 300 seconds, and accepted values are 30–900. Watch for progress and errors
+rather than repeatedly starting new containers. Newly created private test and
+image-marker directories explicitly enforce mode 0700 because DSM may inherit
+broader directory permissions. Existing directories are validated, not silently
+changed.
 
 It creates isolated PostgreSQL and Keycloak containers, a synthetic realm with two accounts, and a local HTTPS proxy with a trusted temporary certificate. It exercises both clients through actual browser authorization-code flows, then uses the application's OAuth client for token exchange and introspection. It checks intended audiences, shared subjects within a household, different subjects across households, PKCE and redirect rejection, scopes, client authentication, refresh rotation/replay rejection, and revocation. Authorization-code replay can invalidate a Keycloak client session, so that destructive check uses a separate grant. Containers, test database volumes, and private temporary configuration are removed afterward. A failed run retains a bounded, owner-only diagnostic log in the repository's ignored `private/` directory; remove it after debugging. No live identity provider or Amazon account is used.
 

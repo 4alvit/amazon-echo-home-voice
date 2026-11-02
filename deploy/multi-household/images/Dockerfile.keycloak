@@ -1,0 +1,8 @@
+# syntax=docker/dockerfile:1.7
+FROM quay.io/keycloak/keycloak:26.8.1@sha256:3f3c5f8e03c614774b4bd9173b88391fefa4153bfc010d8012d59ad825377332
+# Quarkus records the released dependency path. Keep that path while replacing
+# its content with the patched official JAR; embedded Maven metadata is 33.7.2.
+ADD --checksum=sha256:b530942257fb935f8b2cfaa5f8eb5bd59c555fd8e8d01b8ce98912e077ea606c --chown=1000:0 --chmod=0644 https://repo.maven.apache.org/maven2/com/google/guava/guava/33.7.2-jre/guava-33.7.2-jre.jar /opt/keycloak/lib/lib/main/com.google.guava.guava-33.6.0-jre.jar
+LABEL org.opencontainers.image.version="26.8.1-security.1" \
+      org.opencontainers.image.source="https://github.com/4alvit/amazon-echo-home-voice" \
+      org.opencontainers.image.description="Keycloak 26.8.1 with Guava 33.7.2-jre"

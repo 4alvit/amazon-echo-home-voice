@@ -1,6 +1,34 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "local>victron-venus/venus-os-ci-toolkit:renovate-ci"
+    "local>victron-venus/venus-os-ci-toolkit:renovate-fleet"
+  ],
+  "enabledManagers": [
+    "github-actions",
+    "custom.regex",
+    "custom.jsonata",
+    "dockerfile",
+    "pep621",
+    "pip_requirements",
+    "terraform"
+  ],
+  "pip_requirements": {
+    "managerFilePatterns": [
+      "/(^|/)requirements[^/]*\\.(txt|pip)$/"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "Generated locks with unsupported compile flags or export headers are regenerated through their existing source workflow.",
+      "matchFileNames": [
+        ".github/requirements-build.txt",
+        ".github/requirements-security.txt",
+        "src/requirements.txt"
+      ],
+      "enabled": false,
+      "matchManagers": [
+        "pip_requirements"
+      ]
+    }
   ]
 }

@@ -20,13 +20,14 @@
       "**/vendor/**",
       "**/node_modules/**",
       "**/fixtures/**",
-      ".github/requirements-security.txt",
       ".github/requirements-build.txt",
       "src/requirements.txt",
       "deploy/unified/requirements.lock",
       "requirements-test.lock",
       "requirements-webhook.lock",
+      ".github/requirements-security.txt",
       ".github/requirements-build.in",
+      ".github/requirements-security.in",
       ".github/requirements-wheels-only.in",
       "deploy/unified/requirements.in",
       "pyproject.toml",
@@ -36,20 +37,7 @@
   "ignorePaths": [
     "**/vendor/**",
     "**/node_modules/**",
-    "**/fixtures/**",
-    ".github/requirements-security.txt"
-  ],
-  "packageRules": [
-    {
-      "description": "Generated locks with unsupported compile flags or export headers are regenerated through their existing source workflow.",
-      "matchFileNames": [
-        ".github/requirements-security.txt"
-      ],
-      "enabled": false,
-      "matchManagers": [
-        "pip_requirements"
-      ]
-    }
+    "**/fixtures/**"
   ],
   "pip-compile": {
     "managerFilePatterns": [
@@ -57,7 +45,8 @@
       "/^src/requirements\\.txt$/",
       "/^deploy/unified/requirements\\.lock$/",
       "/^requirements\\-test\\.lock$/",
-      "/^requirements\\-webhook\\.lock$/"
+      "/^requirements\\-webhook\\.lock$/",
+      "/^\\.github/requirements\\-security\\.txt$/"
     ]
   }
 }

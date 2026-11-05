@@ -17,6 +17,14 @@
       "/(^|/)requirements[^/]*\\.(txt|pip)$/"
     ]
   },
+  "ignorePaths": [
+    "**/vendor/**",
+    "**/node_modules/**",
+    "**/fixtures/**",
+    ".github/requirements-build.txt",
+    ".github/requirements-security.txt",
+    "src/requirements.txt"
+  ],
   "packageRules": [
     {
       "description": "Generated locks with unsupported compile flags or export headers are regenerated through their existing source workflow.",

@@ -8,35 +8,56 @@
     "custom.regex",
     "custom.jsonata",
     "dockerfile",
-    "pep621",
     "pip_requirements",
-    "terraform"
+    "terraform",
+    "pip-compile"
   ],
   "pip_requirements": {
     "managerFilePatterns": [
       "/(^|/)requirements[^/]*\\.(txt|pip)$/"
+    ],
+    "ignorePaths": [
+      "**/vendor/**",
+      "**/node_modules/**",
+      "**/fixtures/**",
+      ".github/requirements-security.txt",
+      ".github/requirements-build.txt",
+      "src/requirements.txt",
+      "deploy/unified/requirements.lock",
+      "requirements-test.lock",
+      "requirements-webhook.lock",
+      ".github/requirements-build.in",
+      ".github/requirements-wheels-only.in",
+      "deploy/unified/requirements.in",
+      "pyproject.toml",
+      "requirements-webhook.in"
     ]
   },
   "ignorePaths": [
     "**/vendor/**",
     "**/node_modules/**",
     "**/fixtures/**",
-    ".github/requirements-build.txt",
-    ".github/requirements-security.txt",
-    "src/requirements.txt"
+    ".github/requirements-security.txt"
   ],
   "packageRules": [
     {
       "description": "Generated locks with unsupported compile flags or export headers are regenerated through their existing source workflow.",
       "matchFileNames": [
-        ".github/requirements-build.txt",
-        ".github/requirements-security.txt",
-        "src/requirements.txt"
+        ".github/requirements-security.txt"
       ],
       "enabled": false,
       "matchManagers": [
         "pip_requirements"
       ]
     }
-  ]
+  ],
+  "pip-compile": {
+    "managerFilePatterns": [
+      "/^\\.github/requirements\\-build\\.txt$/",
+      "/^src/requirements\\.txt$/",
+      "/^deploy/unified/requirements\\.lock$/",
+      "/^requirements\\-test\\.lock$/",
+      "/^requirements\\-webhook\\.lock$/"
+    ]
+  }
 }

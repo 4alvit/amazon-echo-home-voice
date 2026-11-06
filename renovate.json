@@ -26,7 +26,9 @@
       "requirements-test.lock",
       "requirements-webhook.lock",
       ".github/requirements-security.txt",
+      ".github/requirements-fuzz.txt",
       ".github/requirements-build.in",
+      ".github/requirements-fuzz.in",
       ".github/requirements-security.in",
       ".github/requirements-wheels-only.in",
       "deploy/unified/requirements.in",
@@ -46,7 +48,8 @@
       "/^deploy/unified/requirements\\.lock$/",
       "/^requirements\\-test\\.lock$/",
       "/^requirements\\-webhook\\.lock$/",
-      "/^\\.github/requirements\\-security\\.txt$/"
+      "/^\\.github/requirements\\-security\\.txt$/",
+      "/^\\.github/requirements\\-fuzz\\.txt$/"
     ]
   }
 }

@@ -37,3 +37,7 @@ advisories. A 2026-10-08 pip-audit of registry packages found no known findings
 in this lock. pip-audit cannot map the direct oscrypto source URL to a registry
 version, so that source requires separate review; a zero registry count does
 not certify that source commit or the full application.
+
+## Static metadata for the pinned oscrypto source
+
+The existing oscrypto dependency uses immutable archive `d5f3437ed24257895ae1edd9e503cfb352e635a8` (SHA-256 `f40d112bb8b5ca8cd424d64d80b3bd39a48bc1d769206f2c4d79fd9b0618ae74`). Its reviewed `setup.py` declares version 1.3.0 and only `asn1crypto>=1.5.1`, with no Python-version constraint or optional dependencies. The exact-version `tool.uv.dependency-metadata` entry records those declarations so dependency resolution can run with `--no-build` without executing the archive build backend. The source origin, selected version and distribution hash remain unchanged. Recheck the archive metadata and hash together before changing this source pin.

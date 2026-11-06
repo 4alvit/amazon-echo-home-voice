@@ -60,8 +60,8 @@ NAS already under load. Rebuild the dependency lock only as a reviewed change:
 
 ```sh
 uv pip compile deploy/unified/requirements.in --generate-hashes --universal \
-  --python-version 3.14 --no-strip-extras \
-  --output-file deploy/unified/requirements.lock
+  --python-version=3.14 --no-strip-extras \
+  --output-file=deploy/unified/requirements.lock
 ```
 
 ## Private runtime configuration

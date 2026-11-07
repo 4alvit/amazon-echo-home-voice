@@ -95,18 +95,18 @@ class UnifiedProcessTest(unittest.TestCase):
                                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         return entries
 
-    def wait_ready(self):
-        deadline = time.monotonic() + 10
+    def wait_ready(self, expected=True, timeout=10):
+        deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             if self.process.poll() is not None:
                 self.fail(self.process.stdout.read())
             try:
-                if json.loads(self.status.read_text()).get("ready"):
+                if json.loads(self.status.read_text()).get("ready") is expected:
                     return
             except (OSError, ValueError):
                 pass
             time.sleep(0.03)
-        self.fail("Supervisor did not become ready")
+        self.fail(f"Supervisor did not report ready={expected} within {timeout} seconds")
 
     def assert_children_gone(self):
         pids = [pid for path in self.root.glob("pid*.json") for pid in json.loads(path.read_text())]
@@ -151,19 +151,27 @@ class UnifiedProcessTest(unittest.TestCase):
     def test_transient_readiness_failure_does_not_restart_children(self):
         entries = self.launch()
         self.wait_ready()
+        original_pids = {
+            path.name: json.loads(path.read_text()) for path in self.root.glob("pid*.json")
+        }
         url = f'http://127.0.0.1:{entries[0]["port"]}'
         try:
-            urllib.request.urlopen(url + "/unhealthy", timeout=1)
+            with urllib.request.urlopen(url + "/unhealthy", timeout=1):
+                self.fail("Unhealthy fixture did not return HTTP 503")
         except urllib.error.HTTPError as error:
-            error.close()
-        except OSError:
-            pass
-        time.sleep(1.2)
+            with error:
+                self.assertEqual(error.code, 503)
+        # Observe the next completed probe instead of assuming the supervisor
+        # was scheduled during a fixed sleep.
+        self.wait_ready(expected=False, timeout=4)
         self.assertIsNone(self.process.poll())
-        self.assertFalse(json.loads(self.status.read_text())["ready"])
         with urllib.request.urlopen(url + "/healthy", timeout=1):
             pass
         self.wait_ready()
+        self.assertEqual(
+            {path.name: json.loads(path.read_text()) for path in self.root.glob("pid*.json")},
+            original_pids,
+        )
 
     @unittest.skipUnless(sys.platform.startswith("linux"), "Linux subreaper orphan semantics")
     def test_stubborn_child_and_grandchild_are_killed_and_reaped(self):

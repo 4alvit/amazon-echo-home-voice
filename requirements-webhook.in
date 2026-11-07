@@ -12,7 +12,7 @@ cryptography==50.0.2
 freezegun==1.5.5
 gunicorn==23.0.0
 idna==3.19
-oscrypto @ https://github.com/wbond/oscrypto/archive/d5f3437ed24257895ae1edd9e503cfb352e635a8.tar.gz
+oscrypto @ https://github.com/wbond/oscrypto/archive/d5f3437ed24257895ae1edd9e503cfb352e635a8.tar.gz#sha256=f40d112bb8b5ca8cd424d64d80b3bd39a48bc1d769206f2c4d79fd9b0618ae74
 packaging==26.3
 pycparser==3.0
 python-dateutil==2.9.0.post0

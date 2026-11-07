@@ -1,5 +1,6 @@
 """Real subprocess tests for supervision; no NAS, Cast, IGW or accounts are used."""
 
+from contextlib import ExitStack
 import json
 import os
 from pathlib import Path
@@ -77,13 +78,16 @@ class UnifiedProcessTest(unittest.TestCase):
 
     def launch(self, modes=("healthy", "healthy")):
         entries = []
-        for i, mode in enumerate(modes):
-            with socket.socket() as sock:
+        # Reserve every port together so a later allocation cannot reuse an
+        # earlier child's released port before either server has started.
+        with ExitStack() as reservations:
+            for i, mode in enumerate(modes):
+                sock = reservations.enter_context(socket.socket())
                 sock.bind(("127.0.0.1", 0))
                 port = sock.getsockname()[1]
-            entries.append({"name": f"child{i}", "port": port,
-                            "argv": [sys.executable, str(self.server), str(port),
-                                     mode, str(self.root / f"pid{i}.json")]})
+                entries.append({"name": f"child{i}", "port": port,
+                                "argv": [sys.executable, str(self.server), str(port),
+                                         mode, str(self.root / f"pid{i}.json")]})
         config = self.root / "config.json"
         config.write_text(json.dumps({"children": entries, "status": str(self.status),
                                       "startup": 1.2 if "unhealthy" in modes else 8}))

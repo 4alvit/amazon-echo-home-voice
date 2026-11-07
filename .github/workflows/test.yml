@@ -113,6 +113,7 @@ jobs:
             public.ecr.aws/sam/build-python3.12@sha256:6fcfdfc2cb86f20f1a9b62b86fcf376e2be6959e5c3f561fc6cc31931a091e0b \
             -euc 'sam build --template-file template.yaml --build-dir /tmp/voice-build --cache-dir /tmp/voice-cache
           export PYTHONPATH=/tmp/voice-build/HomeEnergyFunction
-          python3.12 -c "import cryptography; assert cryptography.__version__ == \"50.0.2\"; from amazon_echo_home_voice.lambda_handler import lambda_handler"
+          python3.12 scripts/check_dependency_locks.py --installed
+          python3.12 -c "from amazon_echo_home_voice.lambda_handler import lambda_handler"
           python3.12 tests/inspect_tls_runtime.py
           python3.12 -m unittest discover -s tests -p test_tls_policy.py -v'

@@ -1,6 +1,55 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "local>victron-venus/venus-os-ci-toolkit:renovate-ci"
-  ]
+    "local>victron-venus/venus-os-ci-toolkit:renovate-fleet"
+  ],
+  "enabledManagers": [
+    "github-actions",
+    "custom.regex",
+    "custom.jsonata",
+    "dockerfile",
+    "pip_requirements",
+    "terraform",
+    "pip-compile"
+  ],
+  "pip_requirements": {
+    "managerFilePatterns": [
+      "/(^|/)requirements[^/]*\\.(txt|pip)$/"
+    ],
+    "ignorePaths": [
+      "**/vendor/**",
+      "**/node_modules/**",
+      "**/fixtures/**",
+      ".github/requirements-build.txt",
+      "src/requirements.txt",
+      "deploy/unified/requirements.lock",
+      "requirements-test.lock",
+      "requirements-webhook.lock",
+      ".github/requirements-security.txt",
+      ".github/requirements-fuzz.txt",
+      ".github/requirements-build.in",
+      ".github/requirements-fuzz.in",
+      ".github/requirements-security.in",
+      ".github/requirements-wheels-only.in",
+      "deploy/unified/requirements.in",
+      "pyproject.toml",
+      "requirements-webhook.in"
+    ]
+  },
+  "ignorePaths": [
+    "**/vendor/**",
+    "**/node_modules/**",
+    "**/fixtures/**"
+  ],
+  "pip-compile": {
+    "managerFilePatterns": [
+      "/^\\.github/requirements\\-build\\.txt$/",
+      "/^src/requirements\\.txt$/",
+      "/^deploy/unified/requirements\\.lock$/",
+      "/^requirements\\-test\\.lock$/",
+      "/^requirements\\-webhook\\.lock$/",
+      "/^\\.github/requirements\\-security\\.txt$/",
+      "/^\\.github/requirements\\-fuzz\\.txt$/"
+    ]
+  }
 }

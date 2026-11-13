@@ -4,17 +4,17 @@ ask-sdk-model==1.82.0
 ask-sdk-runtime==1.19.0
 ask-sdk-webservice-support==1.3.3
 asn1crypto==1.5.1
-certifi==2026.10.19
+certifi==2026.10.23
 certvalidator==0.11.1
 cffi==2.1.1
-charset-normalizer==3.5.1
+charset-normalizer==3.5.2
 cryptography==50.0.2
 freezegun==1.5.5
 gunicorn==23.0.0
-idna==3.19
+idna==3.20
 oscrypto @ https://github.com/wbond/oscrypto/archive/d5f3437ed24257895ae1edd9e503cfb352e635a8.tar.gz#sha256=f40d112bb8b5ca8cd424d64d80b3bd39a48bc1d769206f2c4d79fd9b0618ae74
 packaging==26.3
-pycparser==3.0
+pycparser==3.12
 python-dateutil==2.9.0.post0
 requests==2.34.2
 six==1.17.0

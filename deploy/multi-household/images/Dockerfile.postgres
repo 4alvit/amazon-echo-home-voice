@@ -1,6 +1,6 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.29
 # Replace only the old Go-built privilege-drop helper; PostgreSQL stays 17.11.
-FROM --platform=$BUILDPLATFORM golang:1.27.3-bookworm@sha256:d9b6a1beb9474adc2a1ce842573639b44b2a0dd49b6669f51d3821baf9ec37c9 AS gosu
+FROM --platform=$BUILDPLATFORM golang:1.27.4-bookworm@sha256:4fa7c968ba93f1635670522dbb01a2c78150443e1385746924566079f36570ea AS gosu
 ADD --checksum=sha256:cd9719b775dbfedae53923c9b0dc792b66d42c51e0b36652ed6f747fbadc0164 https://codeload.github.com/tianon/gosu/tar.gz/refs/tags/1.19 /tmp/gosu.tar.gz
 WORKDIR /src
 RUN tar -xzf /tmp/gosu.tar.gz --strip-components=1
@@ -10,7 +10,7 @@ ENV GOTOOLCHAIN=local CGO_ENABLED=0
 RUN go mod download && go mod verify && \
     GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags='-w -s' -o /out/gosu .
 
-FROM postgres:17.11-bookworm@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5
+FROM postgres:17.12-bookworm@sha256:40865bc877a289da75963d97d72b59633f639fc5af7a4e856bfa3714cae5b536
 COPY --from=gosu --chmod=0755 /out/gosu /usr/local/bin/gosu
 LABEL org.opencontainers.image.version="17.11-bookworm-security.1" \
       org.opencontainers.image.source="https://github.com/4alvit/amazon-echo-home-voice" \

@@ -274,7 +274,8 @@ class OAuthClient:
             raise InvalidToken("Account access is invalid")
         payload = self._post_json(
             self.config.introspection_url,
-            {"token": access_token, "token_type_hint": "access_token"},
+            # RFC7662 type hint is a public enum, never a credential.
+            {"token": access_token, "token_type_hint": "access_token"},  # nosec B105
             client_id, client_secret,
         )
         audience = payload.get("aud")

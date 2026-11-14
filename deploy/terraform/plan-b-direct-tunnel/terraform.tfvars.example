@@ -12,3 +12,4 @@ manage_bot_fight_mode                         = false
 bot_fight_mode_enabled                        = true
 acknowledge_zone_wide_bot_fight_mode_disable   = false
 existing_is_robots_txt_managed                = null
+existing_ai_bots_migration_opt_out             = null

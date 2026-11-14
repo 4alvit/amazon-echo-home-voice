@@ -49,10 +49,15 @@ resource "cloudflare_bot_management" "alexa" {
   zone_id    = each.value
   fight_mode = var.bot_fight_mode_enabled
 
-  # Provider 5.24.0 otherwise defaults this existing, separate setting to false.
-  is_robots_txt_managed = var.existing_is_robots_txt_managed
+  # Provider 5.29.0 defaults these separate existing settings to false.
+  is_robots_txt_managed     = var.existing_is_robots_txt_managed
+  ai_bots_migration_opt_out = var.existing_ai_bots_migration_opt_out
 
   lifecycle {
+    precondition {
+      condition     = var.existing_ai_bots_migration_opt_out != null
+      error_message = "Read the zone's current bot settings and supply existing_ai_bots_migration_opt_out before adoption."
+    }
     precondition {
       condition     = var.existing_is_robots_txt_managed != null
       error_message = "Read the zone's current bot settings and supply existing_is_robots_txt_managed before adoption."

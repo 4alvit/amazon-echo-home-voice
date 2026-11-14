@@ -30,7 +30,7 @@ webhook. `disable_chunked_encoding` preserves the WSGI transport requirement.
   geographical rules, and bot protections for legitimate Alexa requests. This
   template does not weaken Access, WAF, DDoS protection, or unrelated routes.
 - Use Terraform 1.7 or later; conditional import blocks require that version.
-  The Cloudflare provider is pinned to 5.24.0. Standard Bot Fight Mode and this
+  The Cloudflare provider is pinned to 5.29.0. Standard Bot Fight Mode and this
   direct tunnel use Free features; no subscription or payment resource exists.
 
 An existing shared tunnel must stay with its existing configuration owner. If
@@ -79,10 +79,11 @@ To adopt previously unmanaged settings in a future reviewed deployment:
 1. Read `/zones/{zone_id}/bot_management` through an authorized read-only API
    client. Save the current response privately and review the whole zone's
    existing bot configuration.
-2. Set `existing_is_robots_txt_managed` to its exact current boolean. Provider
-   5.24.0 defaults this separate field to `false` if omitted; the template blocks
-   adoption while the snapshot input is `null`. Never copy a guessed value from
-   another account.
+2. Set `existing_is_robots_txt_managed` and
+   `existing_ai_bots_migration_opt_out` to their exact current booleans. Provider
+   5.29.0 defaults both separate fields to `false` if omitted; the template blocks
+   adoption while either snapshot input is `null`. Never copy guessed values
+   from another account.
 3. Set `manage_bot_fight_mode=true`. The conditional import block then adopts
    the existing zone by the supplied `zone_id`; no manual import is required.
    First review a plan with Bot Fight Mode matching the existing setting and
@@ -95,10 +96,9 @@ alternative requires both `bot_fight_mode_enabled=false` and
 `acknowledge_zone_wide_bot_fight_mode_disable=true` while management is enabled.
 These inputs describe scope; they are not permission to apply automatically.
 
-Only the desired `fight_mode` value and the unchanged robots.txt snapshot are
-configured. Other fields remain optional computed settings. Provider 5.24.0 can
-show them as `known after apply` and omits unknown values from its update body;
-it does not reliably represent `cf_robots_variant` in state. Before and after
+Only the desired `fight_mode` value and the unchanged robots.txt and bot-migration
+snapshots are configured. Other fields remain optional computed settings. Plans may show them as `known after apply`; this is not proof that an update
+will preserve every external setting. Before and after
 any separately authorized apply, compare the read-only API snapshot to ensure
 AI bot blocking, JavaScript detection, crawler protection, robots settings, and
 all other existing values are preserved. A plan alone cannot prove API results.
@@ -134,8 +134,8 @@ after reviewing their current ownership. Restore the zone's prior Bot Fight Mode
 boolean through its actual owner if a disable was authorized; destroying this
 stack alone does not restore it. Keep the NAS service and IGW Access intact.
 
-References: [Cloudflare tunnel resource](https://registry.terraform.io/providers/cloudflare/cloudflare/5.24.0/docs/resources/zero_trust_tunnel_cloudflared),
-[ingress and WSGI settings](https://registry.terraform.io/providers/cloudflare/cloudflare/5.24.0/docs/resources/zero_trust_tunnel_cloudflared_config),
+References: [Cloudflare tunnel resource](https://registry.terraform.io/providers/cloudflare/cloudflare/5.29.0/docs/resources/zero_trust_tunnel_cloudflared),
+[ingress and WSGI settings](https://registry.terraform.io/providers/cloudflare/cloudflare/5.29.0/docs/resources/zero_trust_tunnel_cloudflared_config),
 [Bot Fight Mode limitations](https://developers.cloudflare.com/bots/get-started/bot-fight-mode/),
-[provider bot-management schema](https://github.com/cloudflare/terraform-provider-cloudflare/blob/v5.24.0/internal/services/bot_management/schema.go),
+[provider bot-management schema](https://github.com/cloudflare/terraform-provider-cloudflare/blob/v5.29.0/internal/services/bot_management/schema.go),
 and [protected connector token files](https://developers.cloudflare.com/tunnel/reference/run-parameters/#token-file).

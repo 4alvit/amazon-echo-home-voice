@@ -84,3 +84,9 @@ variable "existing_is_robots_txt_managed" {
   type        = bool
   default     = null
 }
+
+variable "existing_ai_bots_migration_opt_out" {
+  description = "Exact current ai_bots_migration_opt_out value from this operator's read-only zone snapshot. Required when adopting Bot Management; do not guess."
+  type        = bool
+  default     = null
+}

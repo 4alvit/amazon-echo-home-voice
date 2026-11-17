@@ -6,7 +6,7 @@ Do not put a browser login, Access challenge, or service-token requirement on th
 
 ## Preconditions
 
-1. Install the NAS service using [the Compose instructions](README.md#nas-only-alternative). Store the real skill ID in the protected `.env`, recreate the container, and verify that local `/health` reports `skill_configured: true`. Check the configured value against the skill in the Alexa Developer Console without printing the other environment values.
+1. Install the NAS service using [the Compose instructions](README.md#nas-compose-alternative). Store the real skill ID in the protected `.env`, recreate the container, and verify that local `/health` reports `skill_configured: true`. Check the configured value against the skill in the Alexa Developer Console without printing the other environment values.
 2. Identify the native connector's tunnel ID from its local configuration without printing its tunnel token. Confirm that the process shares the host network namespace and can reach `http://127.0.0.1:8091/health`. A connector in another machine or an isolated container cannot use this origin.
 3. Read the target tunnel's connected clients through the Cloudflare API. There must be exactly one connector record, with the ID of the verified NAS connector. Multiple edge connections belonging to that record do not mean multiple connector hosts. Do not use a tunnel also served by the k3s VM or another host: requests could then reach the wrong loopback origin.
 4. Choose a new dedicated hostname in the intended zone. Inspect the account's Access applications, including wildcard applications, and confirm that none requires a browser login or service token for this hostname. Do not weaken an existing IGW application to make Alexa reachable.

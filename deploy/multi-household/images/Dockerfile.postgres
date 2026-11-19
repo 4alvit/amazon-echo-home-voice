@@ -10,7 +10,7 @@ ENV GOTOOLCHAIN=local CGO_ENABLED=0
 RUN go mod download && go mod verify && \
     GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags='-w -s' -o /out/gosu .
 
-FROM postgres:17.12-bookworm@sha256:40865bc877a289da75963d97d72b59633f639fc5af7a4e856bfa3714cae5b536
+FROM postgres:17.12-bookworm@sha256:837bed18782820fe967067cb5328b02b0d9992c1be9a37ee0c9c492cfc03af3b
 COPY --from=gosu --chmod=0755 /out/gosu /usr/local/bin/gosu
 LABEL org.opencontainers.image.version="17.11-bookworm-security.1" \
       org.opencontainers.image.source="https://github.com/4alvit/amazon-echo-home-voice" \

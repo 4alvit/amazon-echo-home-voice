@@ -1,7 +1,29 @@
 # Changelog
 
-## [0.3.6] - Unreleased
+## [0.3.7] - Unreleased
 
+### Changed
+
+- keep local instruction files out of git.
+- add a navigation index for docs/.
+- link the NAS Compose section by its real heading.
+- verify the current default branch before reviewed merges.
+- preserve automerge withdrawal after base advances (#102).
+- reevaluate reviewed dependency merges after CI (#101).
+- observe supervisor readiness transitions within a deadline.
+- stop unsafe scope regeneration before changing files (#98).
+- skip heavy qualification for ordinary documentation (#97).
+- Complete dependency update migration to Renovate (#96).
+
+### Upgrade
+
+Use the existing source-package and container build procedure with the new pinned recipe. Preserve local configuration and credentials, and retain the previous immutable package and deployed image for rollback. Release publication does not replace running AWS, Alexa or Cast services.
+
+### Security
+
+Required dependency, source and container checks remain enabled. This maintenance preview does not claim a new application vulnerability fix, live account-linking acceptance or physical voice-device testing.
+
+## [0.3.6] - 2026-11-02
 ### Changed
 
 - Update the digest-pinned webhook Docker base to Python 3.15. The source package includes the updated build recipe; the release does not distribute or deploy a prebuilt container.
